@@ -101,12 +101,39 @@ reason is recorded here.
 - **Queued jobs.** Jobs run one at a time; dropping another NZB while one runs
   queues it.
 
+## Extraction
+
+- **Our own Emscripten build of libarchive.** `libarchive.js` takes a single
+  `File`, so it can't open multi-volume RAR or split 7z. Spool builds
+  libarchive 3.8.9 with liblzma (xz 5.8.4), zlib and bzip2
+  (`scripts/build-libarchive.sh`) behind a small pull API
+  (`tools/archive-wasm/spool_archive.c`). Volumes are mounted with WORKERFS,
+  which reads disk-backed `File` objects synchronously inside the worker, and
+  opened together with `archive_read_open_filenames`. That handles
+  multi-volume RAR4/RAR5 and presents split files (`.7z.001`, `.zip.001`) as
+  one seekable stream. Output is written in 1 MB chunks.
+- **The WASM build is committed** under `apps/web/src/lib/archive/vendor/`
+  (about 370 KB, loaded only at extraction time) with the third-party license
+  texts, so CI and contributors don't need Emscripten. The build script pins
+  the source tarballs by SHA-256.
+- **No decryption.** libarchive can't decrypt RAR, and 7z/zip AES would need a
+  crypto library. Encrypted archives are detected, their parts are kept, any
+  partial output is removed, and the NZB password is shown.
+- **Cleanup** deletes archive parts and PAR2 files only when every archive set
+  extracted, and only if no article stayed missing after repair.
+
 ## Testing
 
 - **mock-nntp generates its CA at startup** with a unique name, so test
   certificates can never chain to an old run's CA. The E2E harness passes the
   CA to the app through `window.__SPOOL_TEST_CA__`, which only builds with the
   `test-ca` cargo feature act on.
+- **RAR E2E test is skipped in CI.** RAR archives can only be created with
+  RARLAB's proprietary `rar` tool, which CI doesn't install. The test
+  `4b. multi-volume RAR extracts` runs when `rar` is on the PATH while the
+  fixtures are generated, and is skipped otherwise. libarchive's own RAR test
+  vectors were considered, but they're intentionally truncated volumes that no
+  extractor can unpack completely. Multi-volume 7z extraction is covered in CI.
 - **Missing-article rules** are deterministic (`part % every == offset`,
   scoped to a file name) rather than random ratios, so the overlap between two
   providers, and with it the repair the test needs, is exact.

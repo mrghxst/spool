@@ -2,7 +2,7 @@
 // then extraction (libarchive/WASM, loaded only when needed) and cleanup.
 
 import { loadEngine, type Engine } from '../engine/load';
-import { exists, getFile, list, openJobDir, openWriter, readRange, remove, rename } from '../fs';
+import { exists, getFile, list, listRecursive, openJobDir, openWriter, readRange, remove, rename } from '../fs';
 import type { Target } from '../types';
 import type { FromPost, ToPost, VerifyResult } from './protocol';
 
@@ -331,7 +331,7 @@ async function extract(
       removed.push(n);
     }
   }
-  const final = (await list(dir)).filter((n) => !n.endsWith('.crswap'));
+  const final = (await listRecursive(dir)).filter((n) => !n.endsWith('.crswap'));
   return {
     type: 'extracted',
     ok: r.ok,

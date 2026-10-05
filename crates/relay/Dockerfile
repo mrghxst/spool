@@ -16,8 +16,10 @@ COPY .cargo .cargo
 COPY crates crates
 COPY tools tools
 ENV RUSTFLAGS="-C linker=rust-lld -C target-feature=+crt-static"
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/src/target \
+# Both platforms build at once on the same host: lock the shared registry
+# cache and give each target its own build cache.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/src/target,id=relay-target-$TARGETARCH \
     cargo build --release --locked -p spool-relay --target "$(cat /rust-target)" \
  && cp "target/$(cat /rust-target)/release/spool-relay" /spool-relay
 

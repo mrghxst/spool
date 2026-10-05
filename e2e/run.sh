@@ -20,7 +20,7 @@ cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done; }
 trap cleanup EXIT
 
 rm -f "$W/mock/ready.json"
-target/debug/mock-nntp e2e/mock.json 2>"$W/mock.log" &
+target/debug/mock-nntp "$W/mock.json" 2>"$W/mock.log" &
 pids+=($!)
 SPOOL_LISTEN=127.0.0.1:18080 SPOOL_ALLOW='*' SPOOL_PORTS=15631,15632,15633,15634 SPOOL_ALLOW_PRIVATE=1 \
   target/debug/spool-relay 2>"$W/relay.log" &

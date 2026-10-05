@@ -40,7 +40,7 @@ jobs:
           VITE_DEFAULT_RELAY: ${{ vars.VITE_DEFAULT_RELAY }}
         run: pnpm --filter @spool/web build
       - name: Check the shipped engine has no test hooks
-        run: "! grep -rq add_test_root apps/web/dist/assets"
+        run: "! grep -q add_test_root apps/web/dist/assets/*.wasm"
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

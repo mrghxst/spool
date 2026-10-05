@@ -2,7 +2,7 @@
 
 import { Client } from './client';
 import * as db from './db';
-import { clearOpfs, opfsJobsRoot } from './fs';
+import { clearOpfs, fileAt, opfsJobsRoot } from './fs';
 import { fetchRelayInfo, normalizeRelay, type RelayInfo } from './core/relay';
 import type { FromCoordinator } from './workers/protocol';
 import {
@@ -443,12 +443,12 @@ class AppState {
     if (!j?.result) return;
     const root = await opfsJobsRoot();
     const dir = await root.getDirectoryHandle(j.folder);
-    for (const name of j.result.files) {
-      const file = await (await dir.getFileHandle(name)).getFile();
+    for (const path of j.result.files) {
+      const file = await (await fileAt(dir, path)).getFile();
       const url = URL.createObjectURL(file);
       const a = document.createElement('a');
       a.href = url;
-      a.download = name;
+      a.download = path.split('/').pop()!;
       a.rel = 'noopener';
       document.body.append(a);
       a.click();
@@ -471,7 +471,7 @@ class AppState {
     const out: { name: string; size: number }[] = [];
     for (const name of j.result.files) {
       try {
-        out.push({ name, size: (await (await dir.getFileHandle(name)).getFile()).size });
+        out.push({ name, size: (await (await fileAt(dir, name)).getFile()).size });
       } catch {
         // Removed since.
       }

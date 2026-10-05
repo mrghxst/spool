@@ -1,8 +1,13 @@
-// Archive extraction. Replaced by the libarchive implementation in a later
-// step; for now it reports archive sets without touching them.
+// Archive extraction with libarchive compiled to WebAssembly. Loaded only
+// when a job has archives. Volumes are mounted with WORKERFS, so libarchive
+// reads them from disk-backed File objects; output is streamed to disk in
+// 1 MB chunks. Nothing is held in memory whole.
 
-import { archiveSets } from '../core/plan';
+import { archiveSets, type ArchiveSet } from '../core/plan';
+import { getFile, openWriter, remove } from '../fs';
 import type { Target } from '../types';
+import createArchiveModule, { type ArchiveModule } from './vendor/archive.mjs';
+import wasmUrl from './vendor/archive.wasm?url';
 
 export type ExtractResult = {
   ok: boolean;
@@ -13,19 +18,179 @@ export type ExtractResult = {
   encrypted: boolean;
 };
 
+const CHUNK = 1 << 20;
+
+let modPromise: Promise<ArchiveModule> | null = null;
+
+function load(): Promise<ArchiveModule> {
+  modPromise ??= createArchiveModule({
+    locateFile: () => wasmUrl,
+    print: () => {},
+    printErr: () => {},
+  });
+  return modPromise;
+}
+
+/** Splits an entry path into safe segments, or null if it escapes the folder. */
+export function safePath(path: string): string[] | null {
+  const parts = path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((p) => p !== '' && p !== '.');
+  if (parts.length === 0 || parts.some((p) => p === '..')) return null;
+  const clean = parts.map((p) =>
+    p
+      .replace(/[<>:"|?*\u0000-\u001f]/g, '_')
+      .replace(/[. ]+$/, '')
+      .slice(0, 200),
+  );
+  return clean.some((p) => p === '') ? null : clean;
+}
+
+async function subdir(root: FileSystemDirectoryHandle, parts: string[]): Promise<FileSystemDirectoryHandle> {
+  let d = root;
+  for (const p of parts) d = await d.getDirectoryHandle(p, { create: true });
+  return d;
+}
+
+const ENCRYPTED = /encrypt|passphrase|password/i;
+
+type SetOutcome = { ok: true; files: number } | { ok: false; encrypted: boolean; message: string };
+
+async function extractSet(
+  M: ArchiveModule,
+  dir: FileSystemDirectoryHandle,
+  kind: Target['kind'],
+  set: ArchiveSet,
+  password: string | null,
+  mount: string,
+  progress: (bytes: number) => void,
+): Promise<SetOutcome> {
+  const files = await Promise.all(set.parts.map((p) => getFile(dir, p)));
+  M.FS.mkdir(mount);
+  M.FS.mount(M.FS.filesystems.WORKERFS, { files }, mount);
+  const ptrs = set.parts.map((p) => M.stringToNewUTF8(`${mount}/${p}`));
+  const list = M._malloc(ptrs.length * 4);
+  new Uint32Array(M.HEAPU8.buffer, list, ptrs.length).set(ptrs);
+  const pw = password ? M.stringToNewUTF8(password) : 0;
+  const buf = M._malloc(CHUNK);
+  const written: string[][] = [];
+  // On failure, remove what this set wrote so only complete files remain.
+  const undo = async (o: SetOutcome): Promise<SetOutcome> => {
+    for (const path of written) {
+      try {
+        const parent = await subdir(dir, path.slice(0, -1));
+        await remove(parent, path[path.length - 1]);
+      } catch {
+        // Already gone.
+      }
+    }
+    return o;
+  };
+  try {
+    if (M._spool_open(list, ptrs.length, pw) !== 0) {
+      const err = M.UTF8ToString(M._spool_error());
+      return undo({ ok: false, encrypted: ENCRYPTED.test(err), message: err || 'unrecognised archive' });
+    }
+    let count = 0;
+    for (;;) {
+      const r = M._spool_next();
+      if (r === 0) break;
+      if (r < 0) {
+        const err = M.UTF8ToString(M._spool_error());
+        return undo({ ok: false, encrypted: ENCRYPTED.test(err), message: err || 'damaged archive' });
+      }
+      const type = M._spool_entry_type();
+      const path = safePath(M.UTF8ToString(M._spool_entry_path()));
+      if (type !== 1 || !path) {
+        if (type === 2 && path) await subdir(dir, path);
+        M._spool_skip();
+        continue;
+      }
+      const encrypted = M._spool_entry_encrypted() === 1;
+      const name = path[path.length - 1];
+      const parent = await subdir(dir, path.slice(0, -1));
+      if (path.length === 1 && set.parts.includes(name)) {
+        M._spool_skip();
+        continue;
+      }
+      const w = await openWriter(parent, name, kind);
+      written.push(path);
+      let offset = 0;
+      let failed: string | null = null;
+      for (;;) {
+        const n = M._spool_read(buf, CHUNK);
+        if (n === 0) break;
+        if (n < 0) {
+          failed = M.UTF8ToString(M._spool_error()) || 'read error';
+          break;
+        }
+        // Copy out: the heap can move if memory grows.
+        await w.write(offset, M.HEAPU8.slice(buf, buf + n));
+        offset += n;
+        progress(n);
+      }
+      await w.truncate(offset);
+      await w.close();
+      if (failed) {
+        return undo({ ok: false, encrypted: encrypted || ENCRYPTED.test(failed), message: failed });
+      }
+      count++;
+    }
+    return { ok: true, files: count };
+  } finally {
+    M._spool_close();
+    M._free(buf);
+    M._free(list);
+    ptrs.forEach((p) => M._free(p));
+    if (pw) M._free(pw);
+    try {
+      M.FS.unmount(mount);
+      M.FS.rmdir(mount);
+    } catch {
+      // Ignore.
+    }
+  }
+}
+
 export async function extractAll(
-  _dir: FileSystemDirectoryHandle,
-  _kind: Target['kind'],
+  dir: FileSystemDirectoryHandle,
+  kind: Target['kind'],
   names: string[],
-  _password: string | null,
-  _onProgress: (done: number, total: number, detail: string) => void,
+  password: string | null,
+  onProgress: (done: number, total: number, detail: string) => void,
 ): Promise<ExtractResult> {
   const sets = archiveSets(names);
-  return {
-    ok: true,
-    extractedSets: 0,
-    consumed: [],
-    messages: sets.length ? ['Archives were kept as downloaded.'] : [],
-    encrypted: false,
-  };
+  const result: ExtractResult = { ok: true, extractedSets: 0, consumed: [], messages: [], encrypted: false };
+  if (sets.length === 0) return result;
+  const M = await load();
+  let total = 0;
+  for (const s of sets) {
+    for (const p of s.parts) total += (await getFile(dir, p)).size;
+  }
+  let done = 0;
+  let n = 0;
+  for (const set of sets) {
+    onProgress(done, total, set.first);
+    const outcome = await extractSet(M, dir, kind, set, password, `/v${n++}`, (bytes) => {
+      done += bytes;
+      onProgress(Math.min(done, total), total, set.first);
+    });
+    if (outcome.ok) {
+      result.extractedSets++;
+      result.consumed.push(...set.parts);
+      continue;
+    }
+    result.ok = false;
+    if (outcome.encrypted) {
+      result.encrypted = true;
+      result.messages.push(
+        `${set.first} is password-protected and can't be extracted in the browser, so its parts were kept as downloaded.`,
+      );
+    } else {
+      result.messages.push(`Couldn't extract ${set.first}: ${outcome.message}. Its parts were kept as downloaded.`);
+    }
+  }
+  onProgress(total, total, '');
+  return result;
 }

@@ -99,6 +99,26 @@ export async function list(dir: FileSystemDirectoryHandle): Promise<string[]> {
   return out.sort();
 }
 
+/** Every file below `dir`, as slash-separated paths. */
+export async function listRecursive(dir: FileSystemDirectoryHandle, prefix = ''): Promise<string[]> {
+  const out: string[] = [];
+  for await (const [name, handle] of (
+    dir as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }
+  ).entries()) {
+    if (handle.kind === 'file') out.push(prefix + name);
+    else out.push(...(await listRecursive(handle as FileSystemDirectoryHandle, `${prefix}${name}/`)));
+  }
+  return out.sort();
+}
+
+/** Resolves a slash-separated path to a file handle. */
+export async function fileAt(dir: FileSystemDirectoryHandle, path: string): Promise<FileSystemFileHandle> {
+  const parts = path.split('/');
+  let d = dir;
+  for (const p of parts.slice(0, -1)) d = await d.getDirectoryHandle(p);
+  return d.getFileHandle(parts[parts.length - 1]);
+}
+
 /** Renames a file, using move() where supported and copying otherwise. */
 export async function rename(dir: FileSystemDirectoryHandle, from: string, to: string): Promise<void> {
   if (from === to) return;

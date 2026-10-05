@@ -47,4 +47,33 @@ if command -v rar >/dev/null; then
   echo "rar fixtures created"
 fi
 
+# mock-nntp config: one job per fixture folder, four providers.
+python3 - "$W" <<'PY'
+import json, os, sys
+W = os.path.abspath(sys.argv[1])
+jobs = [
+    {"name": "clean", "dir": f"{W}/fixtures/clean"},
+    {"name": "backup", "dir": f"{W}/fixtures/backup"},
+    {"name": "repair", "dir": f"{W}/fixtures/repair", "options": {"obfuscate": True}},
+    {"name": "archive", "dir": f"{W}/fixtures/archive", "options": {"password": "not-needed"}},
+]
+if os.path.isdir(f"{W}/fixtures/rar"):
+    jobs.append({"name": "rar", "dir": f"{W}/fixtures/rar"})
+def provider(name, port, missing=None):
+    return {"name": name, "port": port, "user": "spool", "pass": "secret", "missing": missing or []}
+config = {
+    "out": f"{W}/mock",
+    "jobs": jobs,
+    "providers": [
+        provider("full", 15631),
+        # 10% missing: parts 3, 13, 23, ... of the backup job's data file.
+        provider("sparse", 15632, [{"every": 10, "offset": 3, "file_contains": "debian"}]),
+        # Both miss parts of the repair job; parts 1 and 36 are on neither.
+        provider("partial-a", 15633, [{"every": 5, "offset": 1, "file_contains": "fedora"}]),
+        provider("partial-b", 15634, [{"every": 7, "offset": 1, "file_contains": "fedora"}]),
+    ],
+}
+json.dump(config, open(f"{W}/mock.json", "w"), indent=2)
+PY
+
 ls -l "$W/fixtures/"*
