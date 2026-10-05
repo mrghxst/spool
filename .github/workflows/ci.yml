@@ -20,7 +20,35 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: clippy (wasm)
+        env:
+          RUSTFLAGS: --cfg getrandom_backend="wasm_js" -C target-feature=+simd128
+        run: cargo clippy -p spool-engine --target wasm32-unknown-unknown --features simd -- -D warnings
       - run: cargo test --workspace
+      - name: Relay prints only its startup line
+        run: |
+          hits=$(grep -rnE '\b(e?println!|e?print!|log::|tracing::|dbg!)' crates/relay/src | grep -v 'fn startup_line' || true)
+          echo "$hits"
+          test "$(echo "$hits" | grep -c .)" -eq 1
+
+  wasm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - run: sudo apt-get update && sudo apt-get install -y binaryen
+      - run: bash scripts/build-wasm.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-pkg
+          path: apps/web/src/lib/engine/pkg
