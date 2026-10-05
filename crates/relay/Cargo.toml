@@ -7,4 +7,16 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[[bin]]
+name = "spool-relay"
+path = "src/main.rs"
+
 [dependencies]
+tokio = { workspace = true }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+httparse = "1"
+bytes = "1"
+
+[dev-dependencies]
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["handshake", "connect"] }

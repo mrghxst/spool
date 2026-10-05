@@ -1,0 +1,10 @@
+**/node_modules
+target
+apps
+e2e
+docs
+deploy
+.git
+.github
+**/dist
+tools/mock-nntp/fixtures

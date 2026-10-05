@@ -1,0 +1,39 @@
+# Spool relay behind Caddy with automatic HTTPS.
+# 1. Point relay.example.com (A record, DNS only) at this server.
+# 2. Replace relay.example.com in Caddyfile.
+# 3. docker compose up -d
+services:
+  relay:
+    image: ghcr.io/mrghxst/spool-relay:latest
+    restart: unless-stopped
+    environment:
+      SPOOL_LISTEN: 0.0.0.0:8080
+      # Caddy sets X-Forwarded-For; trust it so per-IP limits apply to clients.
+      SPOOL_TRUST_PROXY: "1"
+      # Optional: only allow your own copy of the app.
+      # SPOOL_ORIGINS: https://you.github.io
+      # Optional: allow any public Usenet host instead of the curated list.
+      # SPOOL_ALLOW: "*"
+    expose:
+      - "8080"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - relay
+
+volumes:
+  caddy_data:
+  caddy_config:

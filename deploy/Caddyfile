@@ -1,0 +1,9 @@
+# Caddy does not write access logs unless a `log` directive is added.
+# Keep it that way: the relay is meant to leave no trace of who used it.
+{
+	admin off
+}
+
+relay.example.com {
+	reverse_proxy relay:8080
+}
