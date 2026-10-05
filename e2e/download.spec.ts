@@ -52,3 +52,27 @@ test('5. wrong password shows the 481 message', async ({ page }) => {
   await page.getByRole('button', { name: 'Download', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: '(481)' }).first()).toBeVisible();
 });
+
+test('1b. the Chromium folder writer (createWritable) produces the same files', async ({ page }) => {
+  await open(page, 'fsa');
+  await addProvider(page, { port: PORTS.full, name: 'Full' });
+  const card = await download(page, 'backup');
+  await expect(card.getByText(/^Done\./)).toBeVisible();
+  await card.getByRole('button', { name: 'Show files' }).click();
+  await expect(card.getByText('debian-12.iso')).toBeVisible();
+  const hashes = await page.evaluate(async () => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('jobs');
+    const dir = await root.getDirectoryHandle('backup');
+    const out: Record<string, string> = {};
+    for await (const [name, h] of (dir as unknown as { entries(): AsyncIterable<[string, FileSystemFileHandle]> }).entries()) {
+      const buf = await (await h.getFile()).arrayBuffer();
+      const d = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+      out[name] = [...d].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+    return out;
+  });
+  for (const [name, hash] of expectedFiles('backup')) {
+    expect(hashes[name], name).toBe(hash);
+  }
+  expect(Object.keys(hashes).some((n) => n.endsWith('.crswap'))).toBe(false);
+});

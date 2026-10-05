@@ -99,7 +99,13 @@
       {#if finished}
         <div>
           <dt>Average speed</dt>
-          <dd class="mono">{elapsed > 0 ? formatSpeed(p.received / elapsed) : '–'}</dd>
+          <dd class="mono" data-testid="average-speed">
+            {job.result && job.result.transferMs > 0
+              ? formatSpeed((job.result.bytes * 1000) / job.result.transferMs)
+              : elapsed > 0
+                ? formatSpeed(p.received / elapsed)
+                : '–'}
+          </dd>
         </div>
         <div>
           <dt>Took</dt>

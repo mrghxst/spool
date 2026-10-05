@@ -27,7 +27,7 @@ export function expectedFiles(job: string): Map<string, string> {
 }
 
 /** Opens the app in E2E mode with the mock CA trusted. */
-export async function open(page: Page) {
+export async function open(page: Page, mode: '' | 'fsa' = '', query = '') {
   const ca = readFileSync(join(WORK, 'mock', 'ca.der')).toString('base64');
   await page.addInitScript((b64) => {
     (window as unknown as { __SPOOL_TEST_CA__: string }).__SPOOL_TEST_CA__ = b64;
@@ -37,7 +37,7 @@ export async function open(page: Page) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto('/?e2e');
+  await page.goto((mode ? `/?e2e=${mode}` : '/?e2e') + query);
   await expect(page.getByText('Drop an .nzb file')).toBeVisible();
   return errors;
 }

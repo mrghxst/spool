@@ -21,6 +21,11 @@ export const DEFAULT_RELAY = normalizeRelay(import.meta.env.VITE_DEFAULT_RELAY |
 const params = new URLSearchParams(location.search);
 /** E2E mode: always stage in OPFS (native pickers can't be automated). */
 export const E2E = params.has('e2e');
+/**
+ * `?e2e=fsa` exercises the Chromium folder writer (createWritable) on an
+ * OPFS directory handle instead of a picked folder.
+ */
+const E2E_FSA = params.get('e2e') === 'fsa';
 
 export const canPickFolder = typeof window !== 'undefined' && 'showDirectoryPicker' in window && !E2E;
 
@@ -133,7 +138,9 @@ class AppState {
 
   private getClient(): Client {
     if (!this.client) {
-      this.client = new Client(decodeTestCa());
+      // E2E benchmarks can pin the number of net workers with ?net=N.
+      const net = E2E ? Number(params.get('net')) || undefined : undefined;
+      this.client = new Client(decodeTestCa(), net);
       this.client.listen((m) => this.onCoordinator(m));
     }
     return this.client;
@@ -310,6 +317,7 @@ class AppState {
 
   /** Picks (or re-authorises) the download folder. Must run in a click. */
   private async target(): Promise<Target> {
+    if (E2E_FSA) return { kind: 'fsa', dir: await opfsJobsRoot() };
     if (!canPickFolder) return { kind: 'opfs' };
     if (this.dir) {
       const h = this.dir as FileSystemDirectoryHandle & {
@@ -329,6 +337,7 @@ class AppState {
   }
 
   get folderName(): string | null {
+    if (E2E_FSA) return 'jobs';
     return canPickFolder ? (this.dir?.name ?? null) : null;
   }
 

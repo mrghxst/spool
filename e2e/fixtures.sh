@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 W=.work
-rm -rf "$W/fixtures" "$W/expected" && mkdir -p "$W/fixtures" "$W/expected" "$W/mock"
+rm -rf "$W/fixtures" "$W/expected" "$W/mock.json" && mkdir -p "$W/fixtures" "$W/expected" "$W/mock"
 
 python3 - "$W" <<'PY'
 import os, random, sys
@@ -40,6 +40,12 @@ mkdir -p "$W/fixtures/archive"
 (cd "$W/expected/archive" && 7z a -bd -mx=1 -v1m "../../fixtures/archive/dataset.7z" dataset.bin readme.txt >/dev/null)
 (cd "$W/fixtures/archive" && par2 create -q -q -s65536 -r10 -n2 archive.par2 dataset.7z.* >/dev/null)
 
+# Throughput benchmark job (only with SPOOL_PERF=1): one 256 MB file.
+if [[ "${SPOOL_PERF:-}" == 1 ]]; then
+  mkdir -p "$W/fixtures/perf"
+  python3 -c "import random,sys; sys.stdout.buffer.write(random.Random(9).randbytes(256*1024*1024))" > "$W/fixtures/perf/dataset-256m.bin"
+fi
+
 # RAR multi-volume, only when a rar binary is available.
 if command -v rar >/dev/null; then
   mkdir -p "$W/fixtures/rar"
@@ -59,6 +65,9 @@ jobs = [
 ]
 if os.path.isdir(f"{W}/fixtures/rar"):
     jobs.append({"name": "rar", "dir": f"{W}/fixtures/rar"})
+if os.path.isdir(f"{W}/fixtures/perf"):
+    # Real posts use articles of about 700 KB.
+    jobs.append({"name": "perf", "dir": f"{W}/fixtures/perf", "options": {"article_size": 716800}})
 def provider(name, port, missing=None):
     return {"name": name, "port": port, "user": "spool", "pass": "secret", "missing": missing or []}
 config = {

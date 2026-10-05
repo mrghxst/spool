@@ -262,6 +262,9 @@ class Job {
   messages: string[] = [];
   writerError: string | null = null;
   fetchingVolumes = false;
+  /** Time spent receiving articles, summed over download phases. */
+  transferMs = 0;
+  firstByteAt = 0;
   par2Name: string | null = null;
   sliceSize = 0;
   ticker: ReturnType<typeof setInterval>;
@@ -605,6 +608,7 @@ class Job {
           break;
         }
         const f = this.files[m.fileIdx];
+        if (!this.firstByteAt) this.firstByteAt = performance.now();
         f.received += m.bytes;
         this.received += m.bytes;
         p.articles++;
@@ -680,6 +684,10 @@ class Job {
     if (this.settled < this.scheduledSegs) return;
     if (this.files.some((f) => f.scheduled && !f.closed)) return;
     for (const c of this.conns.values()) this.closeConn(c);
+    if (this.firstByteAt) {
+      this.transferMs += performance.now() - this.firstByteAt;
+      this.firstByteAt = 0;
+    }
     if (this.fetchingVolumes) {
       this.fetchingVolumes = false;
       void this.repair();
@@ -835,6 +843,8 @@ class Job {
       password: this.password,
       missing: this.missingSegs - this.repairedSegs,
       repaired: this.repairedSegs,
+      bytes: this.received,
+      transferMs: Math.round(this.transferMs),
     };
     ui({ type: 'done', jobId: this.id, result });
   }

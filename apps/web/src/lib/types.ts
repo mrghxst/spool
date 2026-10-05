@@ -128,4 +128,7 @@ export type JobResult = {
   password: string | null;
   missing: number;
   repaired: number;
+  /** Decoded bytes received and the time spent receiving them. */
+  bytes: number;
+  transferMs: number;
 };

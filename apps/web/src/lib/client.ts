@@ -12,8 +12,8 @@ export class Client {
   private listeners = new Set<CoordinatorListener>();
   private waiting = new Map<string, (msg: FromCoordinator) => void>();
 
-  constructor(testCa: Uint8Array | null) {
-    const k = Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4));
+  constructor(testCa: Uint8Array | null, netWorkers?: number) {
+    const k = netWorkers ?? Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4));
     this.coordinator = new Worker(new URL('./workers/coordinator.worker.ts', import.meta.url), {
       type: 'module',
       name: 'coordinator',

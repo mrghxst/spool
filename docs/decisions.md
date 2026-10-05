@@ -122,6 +122,27 @@ reason is recorded here.
 - **Cleanup** deletes archive parts and PAR2 files only when every archive set
   extracted, and only if no article stayed missing after repair.
 
+## Performance
+
+`bash e2e/run.sh --perf` downloads a 256 MB file (700 KB articles, 16
+connections) from mock-nntp through a release relay on the same machine, in
+headless Chromium. On a 16-thread desktop (WSL2):
+
+| Net workers | Transfer speed |
+| --- | --- |
+| 1 | 63 to 66 MB/s |
+| 2 | 65 to 75 MB/s |
+| 4 | 65 to 74 MB/s |
+
+The same engine, relay and mock server do 315 MB/s on one connection and
+1.4 GB/s on 16 when driven natively, so the ceiling above is in the browser.
+Instrumenting a single net worker showed the WASM engine (TLS, NNTP, yEnc,
+CRC) busy about 43% of the time at 72 MB/s, which puts one worker's capacity
+near 170 MB/s. At these speeds the limit is Chromium delivering WebSocket
+messages to workers, not the engine. More net workers help when one worker's
+CPU is the limit, as on slower laptops. K stays at
+`min(hardwareConcurrency, 4)`, and `?e2e&net=N` pins it for benchmarks.
+
 ## Testing
 
 - **mock-nntp generates its CA at startup** with a unique name, so test
