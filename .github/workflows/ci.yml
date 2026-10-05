@@ -46,9 +46,65 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-bindgen@0.2.129
-      - run: sudo apt-get update && sudo apt-get install -y binaryen
+      - uses: ./.github/actions/binaryen
       - run: bash scripts/build-wasm.sh
       - uses: actions/upload-artifact@v7
         with:
           name: engine-pkg
           path: apps/web/src/lib/engine/pkg
+
+  web:
+    needs: wasm
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: engine-pkg
+          path: apps/web/src/lib/engine/pkg
+      - name: Typecheck
+        run: pnpm --filter @spool/web check
+      - name: Unit tests
+        run: pnpm --filter @spool/web test
+      - name: Build
+        run: pnpm --filter @spool/web build
+      - name: Initial JS budget (60 KB gzipped)
+        run: |
+          size=$(gzip -9c apps/web/dist/assets/index-*.js | wc -c)
+          echo "Initial JS: $size bytes gzipped"
+          test "$size" -lt 61440
+
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - run: sudo apt-get update && sudo apt-get install -y par2 p7zip-full
+      - uses: ./.github/actions/binaryen
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: bash e2e/run.sh
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: |
+            e2e/test-results
+            e2e/.work/*.log

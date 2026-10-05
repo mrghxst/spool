@@ -1,0 +1,10 @@
+name: Install binaryen
+description: Installs a pinned binaryen release (wasm-opt). Distro packages are too old for current Rust output.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        v=version_133
+        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/$v/binaryen-$v-x86_64-linux.tar.gz" | tar xz -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/binaryen-$v/bin" >> "$GITHUB_PATH"
