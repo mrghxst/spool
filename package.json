@@ -1,0 +1,20 @@
+{
+  "name": "spool-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "build": "pnpm build:wasm && pnpm --filter @spool/web build",
+    "dev": "pnpm --filter @spool/web dev",
+    "check": "pnpm --filter @spool/web check",
+    "test": "pnpm --filter @spool/web test",
+    "e2e": "bash e2e/run.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

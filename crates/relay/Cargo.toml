@@ -1,0 +1,10 @@
+[package]
+name = "spool-relay"
+description = "A tiny WebSocket to TCP relay that only forwards TLS."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]

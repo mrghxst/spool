@@ -1,0 +1,21 @@
+[package]
+name = "spool-engine"
+description = "Sans-IO NNTP-over-TLS engine for Spool: TLS, NNTP, yEnc, NZB and PAR2."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Adds an API to trust an extra root CA. Only for the mock-nntp test harness.
+# Never enable this in release builds.
+test-ca = []
+# Use wasm32 simd128 for the yEnc hot loop (requires -C target-feature=+simd128).
+simd = []
+
+[dependencies]

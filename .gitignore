@@ -1,0 +1,15 @@
+/target
+node_modules/
+dist/
+dist-e2e/
+apps/web/src/lib/engine/pkg/
+apps/web/src/lib/archive/build/
+e2e/.work/
+e2e/test-results/
+e2e/playwright-report/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+.env
+.env.local
