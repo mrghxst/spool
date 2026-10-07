@@ -48,6 +48,8 @@
     return 'todo';
   }
 
+  // A job that failed before receiving anything: the error says it all.
+  const nothingYet = $derived(job.status === 'failed' && (p?.received ?? 0) === 0);
   const running = $derived(job.status === 'running' || job.status === 'queued');
   const percent = $derived(p && p.total > 0 ? Math.min(100, (p.received / p.total) * 100) : 0);
   const postPercent = $derived(p && p.postTotal > 0 ? Math.min(100, (p.postDone / p.postTotal) * 100) : 0);
@@ -94,7 +96,7 @@
     {/each}
   </ol>
 
-  {#if p}
+  {#if p && !nothingYet}
     <dl class="stats">
       {#if finished}
         <div>
@@ -118,7 +120,7 @@
         </div>
         <div>
           <dt>Time left</dt>
-          <dd class="mono">{Number.isFinite(eta) ? formatDuration(eta) : '–'}</dd>
+          <dd class="mono">{Number.isFinite(eta) ? formatDuration(Math.max(1, eta)) : '–'}</dd>
         </div>
       {/if}
       <div>
@@ -135,9 +137,9 @@
     </div>
   {/if}
 
-  <SegmentGrid grid={job.grid} label={gridLabel} />
+  {#if !nothingYet}<SegmentGrid grid={job.grid} label={gridLabel} />{/if}
 
-  {#if p}
+  {#if p && !nothingYet}
     <ul class="legend small muted" aria-label="Legend">
       {#if running}<li><span class="sw pending"></span>Waiting</li>{/if}
       <li><span class="sw done"></span>Downloaded <span class="mono">{(p.segmentsDone - p.segmentsBackup).toLocaleString('en-US')}</span></li>
@@ -162,7 +164,7 @@
     <p class="small muted">{p.detail}</p>
   {/if}
 
-  {#if p}
+  {#if p && job.status !== 'failed'}
     {#each p.providers.filter((x) => x.error) as prov (prov.id)}
       <p class="small danger" role="alert">{prov.name}: {prov.error}</p>
     {/each}
@@ -405,6 +407,10 @@
   @media (max-width: 640px) {
     .job {
       padding: 16px;
+    }
+    dd {
+      white-space: normal;
+      font-size: var(--t14);
     }
     .stats {
       grid-template-columns: repeat(2, minmax(0, 1fr));

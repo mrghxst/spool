@@ -23,6 +23,7 @@
   );
 
   async function test() {
+    if (testing) return;
     touched = true;
     if (!valid) return;
     testing = true;
@@ -114,7 +115,7 @@
   </label>
 
   <div class="test">
-    <button type="button" class="btn" onclick={test} disabled={testing}>
+    <button type="button" class="btn" onclick={test} aria-disabled={testing}>
       {testing ? 'Testing connection…' : 'Test connection'}
     </button>
     {#if result}

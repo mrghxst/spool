@@ -22,7 +22,7 @@
   --surface: #fafafa;
   --danger: #ee0000;
   --border-strong: #c9c9c9;
-  --overlay: rgba(0, 0, 0, 0.25);
+  --overlay: rgba(0, 0, 0, 0.12);
   --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   --t13: 13px;
@@ -165,7 +165,8 @@ select {
   border-color: var(--border-strong);
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled='true'] {
   cursor: not-allowed;
   color: var(--muted);
 }

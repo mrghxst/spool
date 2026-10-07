@@ -14,6 +14,7 @@
   const relayValid = $derived(relayAllowed(normalizeRelay(relay)));
 
   async function testRelay() {
+    if (testing) return;
     const url = normalizeRelay(relay);
     if (!relayAllowed(url)) {
       relayMsg = { ok: false, text: 'Use a wss:// address, or ws://localhost for a relay on this computer.' };
@@ -98,7 +99,7 @@
       />
     </label>
     <div class="inline">
-      <button class="btn" onclick={testRelay} disabled={testing}>{testing ? 'Testing relay…' : 'Test relay'}</button>
+      <button class="btn" onclick={testRelay} aria-disabled={testing}>{testing ? 'Testing relay…' : 'Test relay'}</button>
       {#if relay !== DEFAULT_RELAY}
         <button
           class="btn ghost"

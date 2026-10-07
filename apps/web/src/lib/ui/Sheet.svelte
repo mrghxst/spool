@@ -22,11 +22,17 @@
     return () => (returnFocus as HTMLElement | null)?.focus?.();
   });
 
-  function keydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
+  // Escape closes the sheet wherever focus is (a button that disables
+  // itself while working drops focus to the body).
+  function windowKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && !e.defaultPrevented) {
+      e.preventDefault();
       onclose();
-    } else if (e.key === 'Tab') {
+    }
+  }
+
+  function keydown(e: KeyboardEvent) {
+    if (e.key === 'Tab') {
       // Keep focus inside the sheet.
       const items = [...panel.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select, [tabindex="0"]')];
       if (!items.length) return;
@@ -42,6 +48,8 @@
     }
   }
 </script>
+
+<svelte:window onkeydown={windowKeydown} />
 
 <div class="overlay" class:shown onclick={onclose} aria-hidden="true"></div>
 <div
