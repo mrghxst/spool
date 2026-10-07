@@ -10,6 +10,7 @@ permissions:
 jobs:
   binaries:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       matrix:
         include:
@@ -37,6 +38,7 @@ jobs:
   publish:
     needs: binaries
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/download-artifact@v8
         with:
