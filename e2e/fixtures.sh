@@ -46,6 +46,13 @@ if [[ "${SPOOL_PERF:-}" == 1 ]]; then
   python3 -c "import random,sys; sys.stdout.buffer.write(random.Random(9).randbytes(256*1024*1024))" > "$W/fixtures/perf/dataset-256m.bin"
 fi
 
+# Screenshot job (only with SPOOL_SCREENS=1): enough articles to fill the grid.
+if [[ "${SPOOL_SCREENS:-}" == 1 ]]; then
+  mkdir -p "$W/fixtures/hero"
+  python3 -c "import random,sys; sys.stdout.buffer.write(random.Random(11).randbytes(24*1024*1024))" > "$W/fixtures/hero/ubuntu-24.04-desktop-amd64.iso"
+  (cd "$W/fixtures/hero" && par2 create -q -q -s65536 -r5 -n2 ubuntu-24.04-desktop.par2 ./*.iso >/dev/null)
+fi
+
 # RAR multi-volume, only when a rar binary is available.
 if command -v rar >/dev/null; then
   mkdir -p "$W/fixtures/rar"
@@ -65,6 +72,8 @@ jobs = [
 ]
 if os.path.isdir(f"{W}/fixtures/rar"):
     jobs.append({"name": "rar", "dir": f"{W}/fixtures/rar"})
+if os.path.isdir(f"{W}/fixtures/hero"):
+    jobs.append({"name": "ubuntu-24.04-desktop", "dir": f"{W}/fixtures/hero"})
 if os.path.isdir(f"{W}/fixtures/perf"):
     # Real posts use articles of about 700 KB.
     jobs.append({"name": "perf", "dir": f"{W}/fixtures/perf", "options": {"article_size": 716800}})
@@ -80,6 +89,10 @@ config = {
         # Both miss parts of the repair job; parts 1 and 36 are on neither.
         provider("partial-a", 15633, [{"every": 5, "offset": 1, "file_contains": "fedora"}]),
         provider("partial-b", 15634, [{"every": 7, "offset": 1, "file_contains": "fedora"}]),
+        # Slow providers for screenshots: some articles come from the backup,
+        # a few are on neither (parts 4, 211 and 418).
+        dict(provider("slow-primary", 15635, [{"every": 9, "offset": 4, "file_contains": "desktop"}]), delay_ms=90),
+        dict(provider("slow-backup", 15636, [{"every": 23, "offset": 4, "file_contains": "desktop"}]), delay_ms=90),
     ],
 }
 json.dump(config, open(f"{W}/mock.json", "w"), indent=2)

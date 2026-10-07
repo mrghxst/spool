@@ -1,5 +1,6 @@
 //! A throwaway test CA and server certificate, generated at startup.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use rcgen::{BasicConstraints, CertificateParams, DnType, IsCa, Issuer, KeyPair, KeyUsagePurpose};
@@ -18,14 +19,20 @@ pub fn generate() -> TestCa {
     let ca_key = KeyPair::generate().expect("generate CA key");
     let mut ca_params = CertificateParams::new(Vec::<String>::new()).expect("CA params");
     ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    // A unique name, so certificates from another run never chain to it.
+    // A unique name, so certificates from another CA (another run, or a
+    // parallel test) never chain to it. The clock alone can collide.
+    static SERIAL: AtomicU64 = AtomicU64::new(0);
+    let serial = SERIAL.fetch_add(1, Ordering::Relaxed);
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
     ca_params.distinguished_name.push(
         DnType::CommonName,
-        format!("Spool mock-nntp test CA {nonce:x}"),
+        format!(
+            "Spool mock-nntp test CA {:x}-{nonce:x}-{serial}",
+            std::process::id()
+        ),
     );
     ca_params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign];
     let now = std::time::SystemTime::now();

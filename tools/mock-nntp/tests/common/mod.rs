@@ -64,6 +64,7 @@ pub async fn provider(
             pass: "pass".into(),
             missing,
             max_conns,
+            delay_ms: 0,
         },
         store: Arc::clone(&f.store),
         stats: Arc::clone(&stats),

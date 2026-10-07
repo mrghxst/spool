@@ -209,6 +209,9 @@ pub struct ProviderConfig {
     /// Connections beyond this get "502 too many connections" after login.
     #[serde(default)]
     pub max_conns: Option<usize>,
+    /// Delay before each BODY reply, to slow downloads down (screenshots).
+    #[serde(default)]
+    pub delay_ms: u64,
 }
 
 /// Counters a test can inspect.
@@ -300,6 +303,11 @@ impl Provider {
                 }
                 "BODY" | "STAT" if !authed => b"480 authentication required\r\n".to_vec(),
                 "BODY" | "STAT" => {
+                    if self.config.delay_ms > 0 {
+                        wr.flush().await?;
+                        tokio::time::sleep(std::time::Duration::from_millis(self.config.delay_ms))
+                            .await;
+                    }
                     let id = words
                         .next()
                         .unwrap_or("")
