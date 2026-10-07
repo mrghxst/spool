@@ -158,3 +158,11 @@ CPU is the limit, as on slower laptops. K stays at
 - **Missing-article rules** are deterministic (`part % every == offset`,
   scoped to a file name) rather than random ratios, so the overlap between two
   providers, and with it the repair the test needs, is exact.
+- **The Chromium folder writer is tested on OPFS.** Native pickers can't be
+  automated, so `?e2e=fsa` points the `createWritable` writer at an OPFS
+  directory handle (Chromium supports both on OPFS). Every other E2E case uses
+  the Firefox/Safari path (OPFS sync handles, then "Save files").
+- **UI review.** `bash e2e/run.sh --screens` captures every screen in both
+  themes and at 360 px, fails on horizontal scroll, and produces the README
+  hero. A keyboard test covers focus rings, focus trapping in sheets, Escape,
+  and focus returning to the button that opened a sheet.
