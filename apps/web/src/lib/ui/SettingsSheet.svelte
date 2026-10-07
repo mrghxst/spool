@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { normalizeRelay, relayAllowed } from '../core/relay';
+  import { normalizeRelay, relayAllowed, relayProblem } from '../core/relay';
+  import { REPO_URL } from '../links';
   import { app, canPickFolder, DEFAULT_RELAY } from '../state.svelte';
   import type { Theme } from '../types';
   import Sheet from './Sheet.svelte';
@@ -16,8 +17,9 @@
   async function testRelay() {
     if (testing) return;
     const url = normalizeRelay(relay);
-    if (!relayAllowed(url)) {
-      relayMsg = { ok: false, text: 'Use a wss:// address, or ws://localhost for a relay on this computer.' };
+    const problem = relayProblem(url);
+    if (problem) {
+      relayMsg = { ok: false, text: problem };
       return;
     }
     relay = url;
@@ -36,7 +38,9 @@
 
   function saveRelay() {
     const url = normalizeRelay(relay);
-    if (url && relayAllowed(url) && url !== app.settings.relay) {
+    const problem = url ? relayProblem(url) : null;
+    relayMsg = problem ? { ok: false, text: problem } : null;
+    if (url && !problem && url !== app.settings.relay) {
       app.setRelay(url);
       void app.checkRelay();
     }
@@ -117,7 +121,8 @@
     {/if}
     <p class="small muted">
       Run your own with <span class="mono">docker run -p 8080:8080 ghcr.io/mrghxst/spool-relay</span> and use
-      <span class="mono">ws://localhost:8080</span>.
+      <span class="mono">ws://localhost:8080</span>. On another machine it needs HTTPS:
+      <a href={`${REPO_URL}/blob/main/deploy/README.md`} target="_blank" rel="noopener noreferrer">self-hosting guide</a>.
     </p>
   </section>
 

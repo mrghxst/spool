@@ -12,6 +12,8 @@ export type RelayInfo = {
 export function normalizeRelay(input: string): string {
   let s = input.trim();
   if (!s) return '';
+  // A pasted URL behind a typed scheme, as in ws://https://host: keep the inner one.
+  while (/^[a-z]+:\/\/[a-z]+:\/\//i.test(s)) s = s.replace(/^[a-z]+:\/\//i, '');
   if (!/^[a-z]+:\/\//i.test(s)) {
     const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test(s);
     s = `${local ? 'ws' : 'wss'}://${s}`;
@@ -22,14 +24,27 @@ export function normalizeRelay(input: string): string {
 
 /** True for wss:// URLs and for ws:// to this machine. */
 export function relayAllowed(url: string): boolean {
+  return relayProblem(url) === null;
+}
+
+/**
+ * Why a (normalised) relay URL can't be used, or null when it can. An https
+ * page may only open ws:// to this machine; anything else needs wss://.
+ */
+export function relayProblem(url: string): string | null {
+  let u: URL;
   try {
-    const u = new URL(url);
-    if (u.protocol === 'wss:') return true;
-    if (u.protocol !== 'ws:') return false;
-    return ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+    u = new URL(url);
   } catch {
-    return false;
+    return "That isn't a valid address. Use wss://relay.example.com.";
   }
+  if (u.protocol === 'wss:') return null;
+  if (u.protocol !== 'ws:') return 'Use a wss:// address.';
+  if (['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)) return null;
+  return (
+    `Browsers only allow ws:// to this computer. For a relay on ${u.hostname}, ` +
+    'serve it over HTTPS and use wss://. The self-hosting guide shows how.'
+  );
 }
 
 export function tunnelUrl(relay: string, host: string, port: number): string {
@@ -61,7 +76,15 @@ export async function fetchRelayInfo(relay: string, timeoutMs = 6000): Promise<R
     return info;
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new Error("The relay didn't answer in time.");
-    if (e instanceof TypeError) throw new Error("Couldn't reach the relay. Check the address.");
+    if (e instanceof TypeError) {
+      // A relay on the LAN answers plain HTTP; wss:// needs a proxy with a certificate.
+      const lan = /^wss:/i.test(relay) && /^(\d+\.\d+\.\d+\.\d+|[^.]+|.+\.(local|lan|home\.arpa))$/i.test(new URL(infoUrl(relay)).hostname);
+      throw new Error(
+        lan
+          ? "Couldn't reach the relay. A relay on another machine needs an HTTPS proxy in front of it; see the self-hosting guide."
+          : "Couldn't reach the relay. Check the address.",
+      );
+    }
     throw e;
   } finally {
     clearTimeout(timer);

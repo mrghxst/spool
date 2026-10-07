@@ -16,6 +16,76 @@ allow `ws://localhost` from an https page, so this works with the hosted app.
 No Docker? Download `spool-relay-linux-amd64` (or `-arm64`) from the
 [releases page](https://github.com/mrghxst/spool/releases) and run it.
 
+## On a home server or NAS
+
+Spool runs on an https page, and browsers only allow plain `ws://` to the
+same computer. A relay on another machine, such as `192.168.1.30:8080`, needs
+HTTPS in front of it so you can use `wss://`. Typing `ws://192.168.1.30:8080`
+or `https://192.168.1.30:8080` won't work: the relay itself doesn't speak TLS.
+
+**If you already run a reverse proxy** (Caddy, Traefik, Nginx Proxy Manager,
+SWAG) with certificates for your domain, add a host such as
+`relay.home.example.com` that forwards to the relay container on port 8080
+with WebSockets enabled. Then use `wss://relay.home.example.com`.
+
+**If you don't**, Caddy can get a certificate for a LAN-only name with the
+DNS challenge. This example uses Cloudflare DNS:
+
+1. Create an `A` record `relay.home.example.com` pointing at the server's LAN
+   address (`192.168.1.30`), **DNS only**. Create a Cloudflare API token with
+   *Zone → DNS → Edit* for that zone.
+2. Build Caddy with the Cloudflare DNS module:
+
+   ```dockerfile
+   # Dockerfile
+   FROM caddy:2-builder AS build
+   RUN xcaddy build --with github.com/caddy-dns/cloudflare
+   FROM caddy:2-alpine
+   COPY --from=build /usr/bin/caddy /usr/bin/caddy
+   ```
+
+3. Compose file and Caddyfile next to it:
+
+   ```yaml
+   services:
+     relay:
+       image: ghcr.io/mrghxst/spool-relay:latest
+       restart: unless-stopped
+       environment:
+         SPOOL_TRUST_PROXY: "1"
+     caddy:
+       build: .
+       restart: unless-stopped
+       ports: ["443:443"]
+       environment:
+         CF_API_TOKEN: your-token
+       volumes:
+         - ./Caddyfile:/etc/caddy/Caddyfile:ro
+         - caddy_data:/data
+   volumes:
+     caddy_data:
+   ```
+
+   ```
+   relay.home.example.com {
+   	tls {
+   		dns cloudflare {env.CF_API_TOKEN}
+   	}
+   	reverse_proxy relay:8080
+   }
+   ```
+
+4. `docker compose up -d --build`, then set the relay to
+   `wss://relay.home.example.com` in Spool. Chrome may ask whether the page
+   can reach devices on your local network; allow it.
+
+A Cloudflare Tunnel also works and reaches the relay from anywhere, but all
+download traffic then flows through Cloudflare, which is slower and may
+conflict with their terms for large transfers.
+
+The relay only allows the providers in its built-in list. If yours isn't on
+it, set `SPOOL_ALLOW: "*"`.
+
 ## On a VPS in five minutes (Debian 12 or 13)
 
 You need a VPS with a public IPv4 address and a domain name.

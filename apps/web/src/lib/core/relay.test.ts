@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeClose, hostMatches, infoUrl, normalizeRelay, relayAllowed, tunnelUrl } from './relay';
+import { describeClose, hostMatches, infoUrl, normalizeRelay, relayAllowed, relayProblem, tunnelUrl } from './relay';
 
 describe('relay urls', () => {
   it('normalises input', () => {
@@ -7,6 +7,8 @@ describe('relay urls', () => {
     expect(normalizeRelay('localhost:8080')).toBe('ws://localhost:8080');
     expect(normalizeRelay('https://relay.example.com')).toBe('wss://relay.example.com');
     expect(normalizeRelay('  ')).toBe('');
+    expect(normalizeRelay('ws://https://192.168.1.30:8482')).toBe('wss://192.168.1.30:8482');
+    expect(normalizeRelay('wss://ws://localhost:8080/')).toBe('ws://localhost:8080');
   });
   it('only allows wss, or ws to this machine', () => {
     expect(relayAllowed('wss://relay.example.com')).toBe(true);
@@ -14,6 +16,11 @@ describe('relay urls', () => {
     expect(relayAllowed('ws://127.0.0.1:8080')).toBe(true);
     expect(relayAllowed('ws://relay.example.com')).toBe(false);
     expect(relayAllowed('nonsense')).toBe(false);
+  });
+  it('explains why ws:// to another machine fails', () => {
+    expect(relayProblem('ws://192.168.1.30:8482')).toMatch(/relay on 192\.168\.1\.30/);
+    expect(relayProblem('wss://192.168.1.30:8482')).toBeNull();
+    expect(relayProblem('http://x')).toMatch(/wss:/);
   });
   it('builds tunnel and info urls', () => {
     expect(tunnelUrl('wss://r.example', 'News.Example.com', 563)).toBe('wss://r.example/v1/tcp/news.example.com/563');

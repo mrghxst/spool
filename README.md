@@ -84,7 +84,9 @@ docker run -d --name spool-relay --restart unless-stopped -p 8080:8080 ghcr.io/m
 ```
 
 Then open Settings in Spool and set the relay to `ws://localhost:8080`.
-Browsers allow `ws://localhost` from an https page.
+Browsers allow `ws://localhost` from an https page, but not `ws://` to
+another machine: a relay on a home server or NAS needs HTTPS in front of it
+([how](deploy/README.md#on-a-home-server-or-nas)).
 
 To serve it to others with HTTPS, use Docker Compose with Caddy:
 
@@ -116,6 +118,15 @@ relay.example.com {
 The full five-minute VPS guide, including DNS and options, is in
 [deploy/README.md](deploy/README.md). Static binaries for Linux (amd64,
 arm64) are on the [releases page](https://github.com/mrghxst/spool/releases).
+
+## Host the app yourself
+
+The app is static files. GitHub Pages builds it from this repo. To host it on
+Cloudflare Workers, connect the repo in Workers Builds with build command
+`pnpm run build` and deploy command `npx wrangler deploy`; the build fetches
+the Rust toolchain on Cloudflare's builder (about a minute) and
+[wrangler.jsonc](wrangler.jsonc) serves `apps/web/dist`. Any other static host
+works with the contents of `apps/web/dist` after `pnpm build`.
 
 ## Browser support
 
