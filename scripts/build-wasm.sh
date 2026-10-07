@@ -15,6 +15,15 @@ if [[ "${1:-}" == "--test-ca" ]]; then
   features="simd,test-ca"
 fi
 
+# Hosted builders (Cloudflare Workers Builds sets WORKERS_CI, Pages sets
+# CF_PAGES) come without Rust; fetch the tools there. SPOOL_BOOTSTRAP=1 forces it.
+if [[ -n "${WORKERS_CI:-}${CF_PAGES:-}${SPOOL_BOOTSTRAP:-}" ]]; then
+  eval "$(bash scripts/bootstrap-toolchain.sh)"
+elif ! command -v cargo >/dev/null; then
+  echo "error: cargo not found. Install Rust, or run with SPOOL_BOOTSTRAP=1 to fetch the toolchain." >&2
+  exit 1
+fi
+
 # RUSTFLAGS replaces the config's target rustflags, so repeat the getrandom cfg.
 export RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C target-feature=+simd128'
 cargo build -p spool-engine --lib --release --target wasm32-unknown-unknown --features "$features"

@@ -1,0 +1,10 @@
+// Cloudflare Workers static assets. Connect the repo in Workers Builds with
+// build command `pnpm run build` and deploy command `npx wrangler deploy`;
+// scripts/build-wasm.sh fetches the Rust toolchain on Cloudflare's builder.
+{
+  "name": "spool",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./apps/web/dist"
+  }
+}

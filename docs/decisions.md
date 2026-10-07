@@ -166,3 +166,17 @@ CPU is the limit, as on slower laptops. K stays at
   themes and at 360 px, fails on horizontal scroll, and produces the README
   hero. A keyboard test covers focus rings, focus trapping in sheets, Escape,
   and focus returning to the button that opened a sheet.
+
+## Hosting
+
+- `apps/web/.env.production` sets the default relay so every host builds the
+  same app; the Pages workflow can still override it with the
+  `VITE_DEFAULT_RELAY` repository variable.
+- Cloudflare Workers Builds has Node but no Rust or clang. Rather than commit
+  build output, `scripts/build-wasm.sh` runs `scripts/bootstrap-toolchain.sh`
+  when `WORKERS_CI` (or `CF_PAGES`, or `SPOOL_BOOTSTRAP`) is set. It installs
+  a minimal Rust, prebuilt wasm-bindgen and binaryen, and clang from wasi-sdk
+  (ring compiles C for wasm32). Tested in a bare `ubuntu:24.04` container.
+- The relay doesn't terminate TLS itself. From an https page, browsers only
+  allow `ws://` to localhost, so a LAN relay goes behind a reverse proxy with
+  a certificate. The settings sheet says so instead of a generic error.
