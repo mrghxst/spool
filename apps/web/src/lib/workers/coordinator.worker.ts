@@ -41,6 +41,11 @@ declare const self: DedicatedWorkerGlobalScope;
 
 /** Requests handed to one connection ahead of time (8 are on the wire). */
 const WINDOW = 16;
+/**
+ * Stop requesting articles while this many received bytes wait for the disk,
+ * so a slow disk can't fill memory and the progress bar tracks what's saved.
+ */
+const MAX_UNWRITTEN = 256 * 1024 * 1024;
 const MAX_FAILURES = 3;
 const TEST_TIMEOUT_MS = 20000;
 
@@ -254,6 +259,9 @@ class Job {
   scheduledSegs = 0;
   settled = 0;
   received = 0;
+  written = 0;
+  /** fill() held back requests because the disk is behind. */
+  throttled = false;
   backupSegs = 0;
   missingSegs = 0;
   repairedSegs = 0;
@@ -400,6 +408,8 @@ class Job {
       jobId: this.id,
       phase: this.phase,
       received: this.received,
+      written: this.written,
+      saving: this.fetching && this.settled >= this.scheduledSegs,
       total,
       segmentsDone: this.settled - this.missingSegs,
       segmentsTotal: this.scheduledSegs,
@@ -501,6 +511,10 @@ class Job {
 
   fill(c: ConnRt) {
     if (!c.authed || c.closing) return;
+    if (this.received - this.written > MAX_UNWRITTEN) {
+      this.throttled = true;
+      return;
+    }
     const items: [number, number, string][] = [];
     while (c.inflight.size < WINDOW) {
       const s = this.take(c.prov);
@@ -650,7 +664,12 @@ class Job {
       case 'written': {
         const f = this.files[m.fileIdx];
         f.written++;
+        this.written += m.bytes;
         this.maybeCloseFile(f);
+        if (this.throttled && this.received - this.written <= MAX_UNWRITTEN / 2) {
+          this.throttled = false;
+          for (const c of this.conns.values()) this.fill(c);
+        }
         break;
       }
       case 'file-closed': {

@@ -18,9 +18,11 @@
 
   $effect(() => {
     if (!p) return;
-    if (p.phase === 'downloading' || p.phase === 'connecting' || p.phase === 'repairing') {
+    if ((p.phase === 'downloading' || p.phase === 'connecting' || p.phase === 'repairing') && !p.saving) {
       speed = meter.update(p.received, performance.now());
     } else {
+      // Nothing more is coming in: show no speed rather than a fading average.
+      meter.reset();
       speed = 0;
     }
   });
@@ -160,6 +162,16 @@
       <span>{phase === 'verifying' ? 'Verifying' : phase === 'repairing' ? 'Repairing' : 'Extracting'}{p.detail ? ` ${p.detail}` : ''}</span>
       <span class="mono muted">{Math.round(postPercent)}%</span>
     </div>
+  {:else if p?.saving && running}
+    <p class="small muted" data-testid="saving">
+      {#if p.received - p.written > 1024 * 1024}
+        Saving to disk, {formatBytes(p.received - p.written)} to go.
+      {:else if job.target?.kind === 'fsa'}
+        Finishing the last files. The browser checks each file before it appears in your folder.
+      {:else}
+        Finishing the last files.
+      {/if}
+    </p>
   {:else if p?.detail && running}
     <p class="small muted">{p.detail}</p>
   {/if}

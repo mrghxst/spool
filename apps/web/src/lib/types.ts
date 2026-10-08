@@ -108,6 +108,9 @@ export type Progress = {
   jobId: string;
   phase: Phase;
   received: number; // decoded bytes
+  written: number; // decoded bytes on disk
+  /** Every article is in; the last writes and file closes are still running. */
+  saving: boolean;
   total: number; // expected decoded bytes
   segmentsDone: number;
   segmentsTotal: number;
