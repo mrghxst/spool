@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "mock-nntp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures-util",
  "md-5",
@@ -726,7 +726,7 @@ dependencies = [
 
 [[package]]
 name = "spool-engine"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crc32fast",
  "js-sys",
@@ -743,7 +743,7 @@ dependencies = [
 
 [[package]]
 name = "spool-relay"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytes",
  "futures-util",

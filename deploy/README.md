@@ -6,6 +6,14 @@ logs and stores nothing.
 
 ## On your own computer
 
+On Windows or macOS, download the binary for your system from the
+[releases page](https://github.com/mrghxst/spool/releases/latest) and run it.
+Without settings it listens on `127.0.0.1:8080` (this computer only) and
+allows any public Usenet host. Set the relay in Spool to `ws://localhost:8080`.
+`spool-relay local` does the same on Linux.
+
+With Docker:
+
 ```sh
 docker run -d --name spool-relay --restart unless-stopped -p 8080:8080 ghcr.io/mrghxst/spool-relay
 ```

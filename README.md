@@ -79,6 +79,19 @@ Details in [docs/privacy.md](docs/privacy.md).
 
 ## Run your own relay
 
+A relay on your own computer is the fastest option: downloads go straight
+from your provider to your computer, with no server in between.
+
+**Windows or macOS:** download `spool-relay-windows-amd64.exe` (or
+`spool-relay-macos-arm64` / `-amd64`) from the
+[releases page](https://github.com/mrghxst/spool/releases/latest) and run it.
+It listens on this computer only and allows any provider. Then set the relay
+in Spool to `ws://localhost:8080`. The binaries aren't code-signed, so Windows
+SmartScreen asks first (**More info → Run anyway**); on macOS, right-click it
+and choose **Open**.
+
+**Docker:**
+
 ```sh
 docker run -d --name spool-relay --restart unless-stopped -p 8080:8080 ghcr.io/mrghxst/spool-relay
 ```
@@ -152,6 +165,14 @@ the TLS session between your browser and the provider.
 **Which providers work?** Any provider with TLS on port 563 or 443. The
 public relay allows a list of common provider domains; your own relay can
 allow anything (`SPOOL_ALLOW=*`).
+
+**Does all my download traffic go through someone's server?** Only if you
+use a relay on another machine. Browsers can't open connections to Usenet
+servers themselves, so something has to turn a WebSocket into a TCP
+connection. Run the relay on your own computer (above) and nothing else is in
+the path: the bytes go from your provider to the relay on your machine and
+into the tab. A relay on your home server is just as fast over your LAN. The
+public relay is for computers where you can't run anything.
 
 **How fast is it?** On a desktop, against a fast relay, about 65 to 75 MB/s
 in Chromium. Your connection and your relay's are usually the limit. See
