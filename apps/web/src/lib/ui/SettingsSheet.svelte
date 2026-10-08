@@ -1,6 +1,6 @@
 <script lang="ts">
   import { normalizeRelay, relayAllowed, relayProblem } from '../core/relay';
-  import { REPO_URL } from '../links';
+  import { DOCS_URL } from '../links';
   import { app, canPickFolder, DEFAULT_RELAY } from '../state.svelte';
   import type { Theme } from '../types';
   import Sheet from './Sheet.svelte';
@@ -122,7 +122,7 @@
     <p class="small muted">
       Run your own with <span class="mono">docker run -p 8080:8080 ghcr.io/mrghxst/spool-relay</span> and use
       <span class="mono">ws://localhost:8080</span>. On another machine it needs HTTPS:
-      <a href={`${REPO_URL}/blob/main/deploy/README.md`} target="_blank" rel="noopener noreferrer">self-hosting guide</a>.
+      <a href={`${DOCS_URL}/self-hosting#on-a-home-server-or-nas`} target="_blank" rel="noopener noreferrer">self-hosting guide</a>.
     </p>
   </section>
 
