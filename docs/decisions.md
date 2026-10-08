@@ -169,9 +169,11 @@ CPU is the limit, as on slower laptops. K stays at
 
 ## Hosting
 
-- `apps/web/.env.production` sets the default relay so every host builds the
-  same app; the Pages workflow can still override it with the
-  `VITE_DEFAULT_RELAY` repository variable.
+- The app is hosted at spool.itsanon.com on Cloudflare Workers; GitHub Pages
+  serves this documentation. `apps/web/.env.production` sets the default
+  relay (`wss://relay.itsanon.com`) so every host builds the same app.
+- The app was briefly on GitHub Pages, so the docs ship a `sw.js` that
+  replaces the app's service worker, deletes its caches and unregisters.
 - Cloudflare Workers Builds has Node but no Rust or clang. Rather than commit
   build output, `scripts/build-wasm.sh` runs `scripts/bootstrap-toolchain.sh`
   when `WORKERS_CI` (or `CF_PAGES`, or `SPOOL_BOOTSTRAP`) is set. It installs

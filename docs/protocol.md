@@ -86,7 +86,7 @@ Returns `ok` with status 200.
 Variables that are set still win.
 
 The curated default list covers common Usenet provider domains; see
-[`crates/relay/src/config.rs`](../crates/relay/src/config.rs).
+[`crates/relay/src/config.rs`](https://github.com/mrghxst/spool/blob/main/crates/relay/src/config.rs).
 
 ## What the relay keeps
 

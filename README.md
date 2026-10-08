@@ -25,7 +25,7 @@ to install. Add your Usenet provider, drop in an `.nzb`, pick a folder, and
 get the finished files. Downloading, yEnc decoding, PAR2 verification and
 repair, and extraction all happen in the browser tab.
 
-**[Open Spool](https://mrghxst.github.io/spool/)**
+**[Open Spool](https://spool.itsanon.com)** · [Documentation](https://mrghxst.github.io/spool/)
 
 ## How it works
 
@@ -52,7 +52,7 @@ More in [docs/architecture.md](docs/architecture.md) and the relay
 
 | Party | Sees | Never sees | Keeps |
 | --- | --- | --- | --- |
-| Static host (GitHub Pages) | Your IP and the app files you load | Anything you do in the app | Its standard access logs, which Spool doesn't control |
+| Static host (Cloudflare) | Your IP and the app files you load | Anything you do in the app | Its standard request logs, which Spool doesn't control |
 | Relay | Your IP, the provider's hostname, byte counts while connected | Usernames, passwords, message-ids, file names, content | Nothing: no logs, no disk, in-memory counters only |
 | Usenet provider | The relay's IP, your account, what you download | Your IP | What any newsreader would leave |
 | Your browser | Everything | | Providers and settings, only with "Remember on this device" on |
@@ -99,7 +99,7 @@ docker run -d --name spool-relay --restart unless-stopped -p 8080:8080 ghcr.io/m
 Then open Settings in Spool and set the relay to `ws://localhost:8080`.
 Browsers allow `ws://localhost` from an https page, but not `ws://` to
 another machine: a relay on a home server or NAS needs HTTPS in front of it
-([how](deploy/README.md#on-a-home-server-or-nas)).
+([how](docs/self-hosting.md#on-a-home-server-or-nas)).
 
 To serve it to others with HTTPS, use Docker Compose with Caddy:
 
@@ -129,13 +129,13 @@ relay.example.com {
 ```
 
 The full five-minute VPS guide, including DNS and options, is in
-[deploy/README.md](deploy/README.md). Static binaries for Linux (amd64,
-arm64) are on the [releases page](https://github.com/mrghxst/spool/releases).
+[docs/self-hosting.md](docs/self-hosting.md). Binaries for Windows, macOS and
+Linux are on the [releases page](https://github.com/mrghxst/spool/releases).
 
 ## Host the app yourself
 
-The app is static files. GitHub Pages builds it from this repo. To host it on
-Cloudflare Workers, connect the repo in Workers Builds with build command
+The app is static files. [spool.itsanon.com](https://spool.itsanon.com) runs
+on Cloudflare Workers, built from this repo. To do the same, connect the repo in Workers Builds with build command
 `pnpm run build` and deploy command `npx wrangler deploy`; the build fetches
 the Rust toolchain on Cloudflare's builder (about a minute) and
 [wrangler.jsonc](wrangler.jsonc) serves `apps/web/dist`. Any other static host
@@ -197,6 +197,7 @@ You need Rust (with the `wasm32-unknown-unknown` target), `wasm-bindgen-cli`
 pnpm install
 pnpm build:wasm        # the Rust engine → apps/web/src/lib/engine/pkg
 pnpm dev               # the app on http://localhost:5173
+pnpm --filter @spool/docs dev  # the documentation site
 cargo test --workspace # engine, relay and mock server tests
 pnpm test              # web unit tests
 pnpm e2e               # Playwright against mock-nntp and the relay (needs par2, 7z)
@@ -214,8 +215,8 @@ captures every screen in both themes.
 | `tools/mock-nntp` | TLS NNTP server and NZB generator for tests |
 | `tools/archive-wasm` | The libarchive shim built by `scripts/build-libarchive.sh` |
 | `e2e` | Playwright tests |
-| `deploy` | Compose file, Caddyfile and the VPS guide |
-| `docs` | Architecture, protocol, privacy and design decisions |
+| `deploy` | Compose file and Caddyfile for a VPS relay |
+| `docs` | The documentation site (VitePress): guide, self-hosting, privacy, protocol, architecture, decisions |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 

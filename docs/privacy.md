@@ -5,7 +5,7 @@ own Usenet account. This is what each part can see.
 
 | Party | Sees | Never sees | Keeps |
 | --- | --- | --- | --- |
-| **Static host** (GitHub Pages) | Your IP address and the app files you load | Anything you do in the app | Standard access logs, under GitHub's policies. Spool controls none of this |
+| **Static host** (Cloudflare for the app, GitHub Pages for these docs) | Your IP address and the files you load | Anything you do in the app | Standard request logs, under Cloudflare's and GitHub's policies. Spool keeps none |
 | **Relay** | Your IP address, the provider hostname and port, byte counts while connected | Your username, password, message-ids, file names or content. TLS runs from your browser to the provider | Nothing. No logs, no disk. In-memory connection counters only, dropped when you disconnect |
 | **Usenet provider** | The relay's IP address, your account, what you download | Your IP address (it sees the relay's) | Whatever any newsreader would leave, under your provider's terms |
 | **Your browser** | Everything | | Providers and settings in IndexedDB, only when "Remember on this device" is on |
@@ -36,7 +36,7 @@ system until you click "Save files", then removed.
 your IP address and the provider you use, run one on your own machine
 (`docker run -p 8080:8080 ghcr.io/mrghxst/spool-relay`, then set the relay to
 `ws://localhost:8080`) or on a server you control. See
-[deploy/README.md](../deploy/README.md).
+[Self-hosting](./self-hosting.md).
 
 **Exported settings** contain your passwords in plain text. Keep that file
 private.

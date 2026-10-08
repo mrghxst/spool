@@ -1,0 +1,166 @@
+/* Black and white, Geist: the same look as the app. */
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --vp-font-family-base: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --vp-font-family-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #fafafa;
+  --vp-c-bg-soft: #fafafa;
+  --vp-c-divider: #eaeaea;
+  --vp-c-gutter: #eaeaea;
+  --vp-c-text-1: #000000;
+  --vp-c-text-2: #666666;
+  --vp-c-text-3: #8f8f8f;
+
+  --vp-c-brand-1: #000000;
+  --vp-c-brand-2: #333333;
+  --vp-c-brand-3: #000000;
+  --vp-c-brand-soft: rgba(0, 0, 0, 0.06);
+
+  --vp-button-brand-bg: #000000;
+  --vp-button-brand-border: #000000;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-bg: #333333;
+  --vp-button-brand-hover-border: #333333;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-bg: #000000;
+  --vp-button-alt-bg: #ffffff;
+  --vp-button-alt-border: #eaeaea;
+  --vp-button-alt-text: #000000;
+  --vp-button-alt-hover-bg: #fafafa;
+  --vp-button-alt-hover-border: #c9c9c9;
+  --vp-button-alt-hover-text: #000000;
+
+  --vp-c-tip-1: #000000;
+  --vp-c-tip-soft: #fafafa;
+  --vp-c-note-1: #000000;
+  --vp-c-note-soft: #fafafa;
+  --vp-c-warning-1: #000000;
+  --vp-c-warning-soft: #fafafa;
+  --vp-c-danger-1: #ee0000;
+
+  --vp-home-hero-name-color: #000000;
+  --vp-code-color: #000000;
+  --vp-code-bg: #f2f2f2;
+  --vp-code-block-bg: #fafafa;
+  --vp-code-link-color: #000000;
+  --vp-custom-block-tip-border: #eaeaea;
+  --vp-custom-block-warning-border: #eaeaea;
+  --vp-custom-block-info-border: #eaeaea;
+}
+
+.dark {
+  --vp-c-bg: #000000;
+  --vp-c-bg-alt: #0a0a0a;
+  --vp-c-bg-soft: #0a0a0a;
+  --vp-c-bg-elv: #0a0a0a;
+  --vp-c-divider: #333333;
+  --vp-c-gutter: #333333;
+  --vp-c-text-1: #ffffff;
+  --vp-c-text-2: #a1a1a1;
+  --vp-c-text-3: #7a7a7a;
+
+  --vp-c-brand-1: #ffffff;
+  --vp-c-brand-2: #d4d4d4;
+  --vp-c-brand-3: #ffffff;
+  --vp-c-brand-soft: rgba(255, 255, 255, 0.08);
+
+  --vp-button-brand-bg: #ffffff;
+  --vp-button-brand-border: #ffffff;
+  --vp-button-brand-text: #000000;
+  --vp-button-brand-hover-bg: #d4d4d4;
+  --vp-button-brand-hover-border: #d4d4d4;
+  --vp-button-brand-hover-text: #000000;
+  --vp-button-brand-active-bg: #ffffff;
+  --vp-button-alt-bg: #000000;
+  --vp-button-alt-border: #333333;
+  --vp-button-alt-text: #ffffff;
+  --vp-button-alt-hover-bg: #0a0a0a;
+  --vp-button-alt-hover-border: #4d4d4d;
+  --vp-button-alt-hover-text: #ffffff;
+
+  --vp-c-tip-1: #ffffff;
+  --vp-c-tip-soft: #0a0a0a;
+  --vp-c-note-1: #ffffff;
+  --vp-c-note-soft: #0a0a0a;
+  --vp-c-warning-1: #ffffff;
+  --vp-c-warning-soft: #0a0a0a;
+
+  --vp-home-hero-name-color: #ffffff;
+  --vp-code-color: #ffffff;
+  --vp-code-bg: #1a1a1a;
+  --vp-code-block-bg: #0a0a0a;
+  --vp-code-link-color: #ffffff;
+  --vp-custom-block-tip-border: #333333;
+  --vp-custom-block-warning-border: #333333;
+  --vp-custom-block-info-border: #333333;
+}
+
+.VPNavBarTitle .title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.04em;
+}
+
+.VPFeature {
+  border: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+}
+
+/* The hero screenshot, one per theme. */
+.hero-shot {
+  margin: 64px auto 0;
+  max-width: 1152px;
+  padding: 0 24px;
+}
+.hero-shot img {
+  width: 100%;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.hero-shot .dark-only,
+.dark .hero-shot .light-only {
+  display: none;
+}
+.dark .hero-shot .dark-only {
+  display: block;
+}
+
+.mermaid {
+  display: flex;
+  justify-content: center;
+}
+
+/* Mermaid labels are HTML inside the SVG: keep doc paragraph styles out. */
+.vp-doc .mermaid p {
+  margin: 0;
+  line-height: 1.4;
+}
+.vp-doc .mermaid {
+  font-family: var(--vp-font-family-base);
+}
