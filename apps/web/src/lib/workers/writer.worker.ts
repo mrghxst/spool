@@ -15,6 +15,12 @@ let names = new Map<number, string>();
 const open = new Map<number, Promise<PositionalWriter>>();
 /** Pending work per file, so close waits for every write. */
 const pending = new Map<number, Promise<void>>();
+/**
+ * Files whose close was requested. A file is closed only when every article
+ * is in, so a later write is a duplicate (from a connection that was being
+ * replaced) and is dropped rather than reopening the file.
+ */
+const closing = new Set<number>();
 let failed = false;
 
 function send(msg: FromWriter) {
@@ -56,6 +62,7 @@ async function handle(msg: ToWriter) {
       failed = false;
       open.clear();
       pending.clear();
+      closing.clear();
       target = msg.target;
       names = new Map(msg.files.map((f) => [f.idx, f.name]));
       dir = await openJobDir(msg.target, msg.folder);
@@ -70,6 +77,7 @@ async function handle(msg: ToWriter) {
     case 'write': {
       if (!dir) return;
       const { fileIdx, segId, offset, data } = msg;
+      if (closing.has(fileIdx)) return;
       void enqueue(fileIdx, async () => {
         const w = await writerFor(fileIdx);
         await w.write(offset, new Uint8Array(data));
@@ -79,6 +87,7 @@ async function handle(msg: ToWriter) {
     }
     case 'close-file': {
       const { fileIdx, size, rename: newName } = msg;
+      closing.add(fileIdx);
       void enqueue(fileIdx, async () => {
         const w = await writerFor(fileIdx);
         if (size !== null) await w.truncate(size);

@@ -17,6 +17,8 @@ type Live = {
   started: number;
   opened: boolean;
   closed: boolean;
+  /** The coordinator asked to close; anything still arriving is dropped. */
+  closing: boolean;
 };
 
 let coord: MessagePort | null = null;
@@ -94,10 +96,13 @@ function drain(id: number, live: Live) {
         toCoord({ type: 'busy', connId: id, code: ev.code });
         break;
       case 'missing':
+        if (live.closing) break;
         live.files.delete(ev.segId);
         toCoord({ type: 'missing', connId: id, segId: ev.segId });
         break;
       case 'segment': {
+        // The coordinator already gave this connection's articles to others.
+        if (live.closing) break;
         const fileIdx = live.files.get(ev.segId) ?? -1;
         live.files.delete(ev.segId);
         const bytes = ev.data.length;
@@ -153,7 +158,7 @@ async function open(msg: OpenConn) {
     return;
   }
   ws.binaryType = 'arraybuffer';
-  const live: Live = { ws, conn, files: new Map(), started: performance.now(), opened: false, closed: false };
+  const live: Live = { ws, conn, files: new Map(), started: performance.now(), opened: false, closed: false, closing: false };
   conns.set(msg.connId, live);
   ws.onopen = () => {
     live.opened = true;
@@ -188,6 +193,7 @@ function request(connId: number, items: [number, number, string][]) {
 function close(connId: number) {
   const live = conns.get(connId);
   if (!live) return;
+  live.closing = true;
   try {
     live.conn?.quit();
     flush(live);

@@ -163,6 +163,10 @@
       <span>{phase === 'verifying' ? 'Verifying' : phase === 'repairing' ? 'Repairing' : 'Extracting'}{p.detail ? ` ${p.detail}` : ''}</span>
       <span class="mono muted">{Math.round(postPercent)}%</span>
     </div>
+  {:else if p?.waitingForDisk && running}
+    <p class="small muted" data-testid="waiting-for-disk">
+      Waiting for the disk to catch up, {formatBytes(Math.max(0, p.received - p.written))} still to write.
+    </p>
   {:else if p?.saving && running}
     <p class="small muted" data-testid="saving">
       {#if p.received - p.written > 1024 * 1024}
@@ -197,6 +201,31 @@
             </span>
           </li>
         {/each}
+      </ul>
+    </details>
+    <details class="files">
+      <summary class="small">Connection details</summary>
+      <ul class="diag" data-testid="connection-details">
+        {#each p.providers as prov (prov.id)}
+          <li class="small">
+            <span class="mono name">{prov.name}</span>
+            <span class="mono muted"
+              >{prov.connections} of {prov.target} connected · {prov.inflight} requested · {prov.articles.toLocaleString('en-US')} articles</span
+            >
+          </li>
+        {/each}
+        <li class="small">
+          <span class="mono name">Waiting to be written</span>
+          <span class="mono muted">{formatBytes(Math.max(0, p.received - p.written))}{p.waitingForDisk ? ' · paused for the disk' : ''}</span>
+        </li>
+        <li class="small">
+          <span class="mono name">Stalled connections replaced</span>
+          <span class="mono muted">{p.stalled}</span>
+        </li>
+        <li class="small">
+          <span class="mono name">"Too many connections" replies</span>
+          <span class="mono muted">{p.refused}</span>
+        </li>
       </ul>
     </details>
   {/if}

@@ -11,6 +11,7 @@ import {
   uniqueName,
   volumeBlocks,
 } from '../core/plan';
+import { looksObfuscated } from '../core/names';
 import { describeClose, tunnelUrl } from '../core/relay';
 import {
   Cell,
@@ -267,6 +268,7 @@ class Job {
   readonly segMsg: string[];
   readonly segState: Uint8Array;
   readonly segTried: Uint32Array;
+  readonly segWritten: Uint8Array;
   readonly conns = new Map<number, ConnRt>();
   phase: Phase = 'connecting';
   detail: string | null = null;
@@ -280,6 +282,8 @@ class Job {
   written = 0;
   /** fill() held back requests because the disk is behind. */
   throttled = false;
+  stalledConns = 0;
+  refusedConns = 0;
   backupSegs = 0;
   missingSegs = 0;
   repairedSegs = 0;
@@ -331,6 +335,7 @@ class Job {
     this.segMsg = new Array<string>(total);
     this.segState = new Uint8Array(total);
     this.segTried = new Uint32Array(total);
+    this.segWritten = new Uint8Array(total);
     const selected = new Set(start.selected);
     let s = 0;
     this.files = nzb.files.map((f, idx) => {
@@ -435,6 +440,9 @@ class Job {
       received: this.received,
       written: this.written,
       saving: this.fetching && this.settled >= this.scheduledSegs,
+      waitingForDisk: this.throttled,
+      stalled: this.stalledConns,
+      refused: this.refusedConns,
       total,
       segmentsDone: this.settled - this.missingSegs,
       segmentsTotal: this.scheduledSegs,
@@ -446,6 +454,8 @@ class Job {
         id: p.cfg.id,
         name: p.cfg.name || p.cfg.host,
         connections: [...this.conns.values()].filter((c) => c.prov === p && c.authed).length,
+        target: p.target,
+        inflight: [...this.conns.values()].reduce((n, c) => n + (c.prov === p ? c.inflight.size : 0), 0),
         error: p.error,
         articles: p.articles,
       })),
@@ -607,6 +617,7 @@ class Job {
         changed = true;
       } else if (c.authed && c.inflight.size > 0 && now - c.lastActivity > this.stallMs) {
         this.abandon(c);
+        this.stalledConns++;
         changed = true;
       }
     }
@@ -690,6 +701,7 @@ class Job {
       case 'busy':
         c.busy = true;
         p.busy++;
+        this.refusedConns++;
         p.lastBusy = Date.now();
         p.target = Math.max(1, Math.min(p.target, p.open - 1));
         p.backoffUntil = Date.now() + Math.min(30000, 2000 * 2 ** Math.min(p.busy, 4));
@@ -741,6 +753,9 @@ class Job {
   onWriter(m: FromWriter) {
     switch (m.type) {
       case 'written': {
+        // Count each article once, even if a replaced connection also wrote it.
+        if (this.segWritten[m.segId]) break;
+        this.segWritten[m.segId] = 1;
         const f = this.files[m.fileIdx];
         f.written++;
         this.written += m.bytes;
@@ -769,7 +784,9 @@ class Job {
     if (f.closeSent || f.done + f.missing < f.segCount || f.written < f.done) return;
     f.closeSent = true;
     let rename: string | null = null;
-    if (f.yencName) {
+    // The yEnc header's name wins only over an obfuscated NZB name: many posts
+    // obfuscate the yEnc names and keep the real ones in the NZB.
+    if (f.yencName && looksObfuscated(f.name) && !looksObfuscated(f.yencName)) {
       const clean = sanitize(f.yencName);
       const taken = new Set(this.files.filter((x) => x !== f).map((x) => x.name.toLowerCase()));
       if (clean && clean !== f.name && !taken.has(clean.toLowerCase())) rename = clean;

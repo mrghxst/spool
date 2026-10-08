@@ -100,6 +100,10 @@ export type ProviderStatus = {
   id: string;
   name: string;
   connections: number;
+  /** Connections allowed right now (lower after "too many connections"). */
+  target: number;
+  /** Articles requested and not yet answered. */
+  inflight: number;
   error: string | null;
   articles: number;
 };
@@ -111,6 +115,12 @@ export type Progress = {
   written: number; // decoded bytes on disk
   /** Every article is in; the last writes and file closes are still running. */
   saving: boolean;
+  /** Requests are paused until the disk catches up. */
+  waitingForDisk: boolean;
+  /** Connections replaced because they stopped answering, this job. */
+  stalled: number;
+  /** "Too many connections" replies, this job. */
+  refused: number;
   total: number; // expected decoded bytes
   segmentsDone: number;
   segmentsTotal: number;
