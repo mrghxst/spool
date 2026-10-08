@@ -321,8 +321,13 @@ async function extract(
   const present = new Set(await list(dir));
   const names = files.filter((f) => present.has(f));
   const { extractAll } = await import('../archive/extract');
-  const r = await extractAll(dir, target.kind, names, password, (done, total, detail) =>
-    progress('extracting', done, total, detail),
+  const r = await extractAll(
+    dir,
+    target.kind,
+    names,
+    password,
+    (done, total, detail) => progress('extracting', done, total, detail),
+    folder.split('/').pop() ?? folder,
   );
   const removed: string[] = [];
   if (cleanup && r.ok && r.extractedSets > 0) {

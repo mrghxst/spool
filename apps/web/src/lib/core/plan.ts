@@ -184,12 +184,16 @@ export function uniqueName(name: string, taken: Set<string>): string {
   }
 }
 
-/** A folder-safe job name. */
+/**
+ * A folder-safe job name. At most 80 characters: Windows refuses paths over
+ * 260, and archives often repeat the release name in a folder and a file.
+ */
 export function jobFolderName(name: string): string {
   const cleaned = name
     .replace(/\.nzb$/i, '')
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
     .replace(/^[.\s]+|[.\s]+$/g, '')
-    .slice(0, 120);
+    .slice(0, 80)
+    .replace(/[.\s]+$/, '');
   return cleaned || 'download';
 }

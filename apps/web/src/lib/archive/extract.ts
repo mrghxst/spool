@@ -3,6 +3,7 @@
 // reads them from disk-backed File objects; output is streamed to disk in
 // 1 MB chunks. Nothing is held in memory whole.
 
+import { sameFolder, shortName } from '../core/names';
 import { archiveSets, type ArchiveSet } from '../core/plan';
 import { getFile, openWriter, remove } from '../fs';
 import type { Target } from '../types';
@@ -55,6 +56,40 @@ async function subdir(root: FileSystemDirectoryHandle, parts: string[]): Promise
 
 const ENCRYPTED = /encrypt|passphrase|password/i;
 
+const PATH_TOO_LONG =
+  'Windows refused a path longer than 260 characters. Choose a download folder with a shorter path, such as C:\\Downloads.';
+
+type Out = { w: Awaited<ReturnType<typeof openWriter>>; parent: FileSystemDirectoryHandle; name: string };
+
+/**
+ * Opens a writer for an extracted file. When Windows refuses the path
+ * (NotFoundError for paths over 260 characters), retries with a shorter
+ * name, then with the short name in the job folder itself.
+ */
+async function openOut(
+  dir: FileSystemDirectoryHandle,
+  parent: FileSystemDirectoryHandle,
+  name: string,
+  kind: Target['kind'],
+): Promise<Out> {
+  const tries: [FileSystemDirectoryHandle, string][] = [
+    [parent, name],
+    [parent, shortName(name)],
+    [dir, shortName(name)],
+  ];
+  let last: unknown;
+  for (const [p, n] of tries) {
+    try {
+      return { w: await openWriter(p, n, kind), parent: p, name: n };
+    } catch (e) {
+      last = e;
+      if ((e as DOMException)?.name !== 'NotFoundError') throw e;
+      await remove(p, n);
+    }
+  }
+  throw (last as DOMException)?.name === 'NotFoundError' ? new Error(PATH_TOO_LONG) : last;
+}
+
 type SetOutcome = { ok: true; files: number } | { ok: false; encrypted: boolean; message: string };
 
 async function extractSet(
@@ -63,6 +98,7 @@ async function extractSet(
   kind: Target['kind'],
   set: ArchiveSet,
   password: string | null,
+  folder: string,
   mount: string,
   progress: (bytes: number) => void,
 ): Promise<SetOutcome> {
@@ -101,21 +137,29 @@ async function extractSet(
         return undo({ ok: false, encrypted: ENCRYPTED.test(err), message: err || 'damaged archive' });
       }
       const type = M._spool_entry_type();
-      const path = safePath(M.UTF8ToString(M._spool_entry_path()));
+      let path = safePath(M.UTF8ToString(M._spool_entry_path()));
+      // Drop a top folder named like the job folder: it only lengthens paths.
+      if (path && sameFolder(path[0], folder)) path = path.length > 1 ? path.slice(1) : null;
       if (type !== 1 || !path) {
-        if (type === 2 && path) await subdir(dir, path);
+        if (type === 2 && path) await subdir(dir, path).catch(() => {});
         M._spool_skip();
         continue;
       }
       const encrypted = M._spool_entry_encrypted() === 1;
-      const name = path[path.length - 1];
-      const parent = await subdir(dir, path.slice(0, -1));
-      if (path.length === 1 && set.parts.includes(name)) {
+      if (path.length === 1 && set.parts.includes(path[0])) {
         M._spool_skip();
         continue;
       }
-      const w = await openWriter(parent, name, kind);
-      written.push(path);
+      let parent: FileSystemDirectoryHandle;
+      try {
+        parent = await subdir(dir, path.slice(0, -1));
+      } catch (e) {
+        if ((e as DOMException)?.name !== 'NotFoundError') throw e;
+        parent = dir;
+      }
+      const out = await openOut(dir, parent, path[path.length - 1], kind);
+      const w = out.w;
+      written.push(out.parent === dir ? [out.name] : [...path.slice(0, -1), out.name]);
       let offset = 0;
       let failed: string | null = null;
       for (;;) {
@@ -159,6 +203,7 @@ export async function extractAll(
   names: string[],
   password: string | null,
   onProgress: (done: number, total: number, detail: string) => void,
+  folder = '',
 ): Promise<ExtractResult> {
   const sets = archiveSets(names);
   const result: ExtractResult = { ok: true, extractedSets: 0, consumed: [], messages: [], encrypted: false };
@@ -172,7 +217,7 @@ export async function extractAll(
   let n = 0;
   for (const set of sets) {
     onProgress(done, total, set.first);
-    const outcome = await extractSet(M, dir, kind, set, password, `/v${n++}`, (bytes) => {
+    const outcome = await extractSet(M, dir, kind, set, password, folder, `/v${n++}`, (bytes) => {
       done += bytes;
       onProgress(Math.min(done, total), total, set.first);
     });

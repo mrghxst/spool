@@ -88,5 +88,6 @@ describe('names', () => {
   it('makes folder-safe job names', () => {
     expect(jobFolderName('My: Job?.nzb')).toBe('My_ Job_');
     expect(jobFolderName('...')).toBe('download');
+    expect(jobFolderName('A'.repeat(200)).length).toBe(80);
   });
 });
