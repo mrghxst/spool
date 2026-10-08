@@ -9,30 +9,47 @@ permissions:
 
 jobs:
   binaries:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       matrix:
         include:
-          - arch: amd64
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
-          - arch: arm64
+            file: spool-relay-linux-amd64
+            rustflags: -C linker=rust-lld -C target-feature=+crt-static
+          - os: ubuntu-24.04
             target: aarch64-unknown-linux-musl
+            file: spool-relay-linux-arm64
+            rustflags: -C linker=rust-lld -C target-feature=+crt-static
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            file: spool-relay-windows-amd64.exe
+            rustflags: -C target-feature=+crt-static
+          - os: macos-15
+            target: aarch64-apple-darwin
+            file: spool-relay-macos-arm64
+          - os: macos-15
+            target: x86_64-apple-darwin
+            file: spool-relay-macos-amd64
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - name: Build static binary
+      - name: Build
+        shell: bash
         env:
-          RUSTFLAGS: -C linker=rust-lld -C target-feature=+crt-static
+          RUSTFLAGS: ${{ matrix.rustflags }}
         run: |
           cargo build --release --locked -p spool-relay --target ${{ matrix.target }}
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/spool-relay dist/spool-relay-linux-${{ matrix.arch }}
+          bin=target/${{ matrix.target }}/release/spool-relay
+          [[ -f "$bin.exe" ]] && bin="$bin.exe"
+          cp "$bin" "dist/${{ matrix.file }}"
       - uses: actions/upload-artifact@v7
         with:
-          name: spool-relay-${{ matrix.arch }}
+          name: ${{ matrix.file }}
           path: dist/*
 
   publish:

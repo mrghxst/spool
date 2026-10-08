@@ -81,6 +81,10 @@ Returns `ok` with status 200.
 | `SPOOL_ORIGINS`          | empty (any)        | Exact `Origin` values allowed to connect                   |
 | `SPOOL_TRUST_PROXY`      | `0`                | Use the right-most `X-Forwarded-For` entry as the client IP |
 
+`spool-relay local`, the default on Windows and macOS, changes two defaults:
+`SPOOL_LISTEN` becomes `127.0.0.1:8080` and `SPOOL_ALLOW` becomes `*`.
+Variables that are set still win.
+
 The curated default list covers common Usenet provider domains; see
 [`crates/relay/src/config.rs`](../crates/relay/src/config.rs).
 

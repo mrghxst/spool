@@ -13,19 +13,28 @@ fn startup_line(msg: &str) {
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
+    // `local`: a relay for this computer only. It's the default on Windows and
+    // macOS, where the binary is double-clicked rather than run by Docker.
+    let local = match args.first().map(String::as_str) {
         Some("healthcheck") => return healthcheck(),
         Some("--version") | Some("-V") => {
             startup_line("");
             return ExitCode::SUCCESS;
         }
+        Some("local") => true,
         Some(_) => {
-            startup_line("usage: spool-relay [healthcheck]");
+            startup_line("usage: spool-relay [local|healthcheck]");
             return ExitCode::from(2);
         }
-        None => {}
-    }
-    let cfg = match Config::from_env() {
+        None => !cfg!(target_os = "linux"),
+    };
+    let cfg = match Config::from_lookup(|k| {
+        std::env::var(k).ok().or_else(|| match (local, k) {
+            (true, "SPOOL_LISTEN") => Some("127.0.0.1:8080".into()),
+            (true, "SPOOL_ALLOW") => Some("*".into()),
+            _ => None,
+        })
+    }) {
         Ok(cfg) => cfg,
         Err(e) => {
             startup_line(&format!("failed to start: {e}"));
@@ -39,10 +48,10 @@ fn main() -> ExitCode {
         Ok(rt) => rt,
         Err(_) => return ExitCode::FAILURE,
     };
-    rt.block_on(run(cfg))
+    rt.block_on(run(cfg, local))
 }
 
-async fn run(cfg: Config) -> ExitCode {
+async fn run(cfg: Config, local: bool) -> ExitCode {
     let listener = match tokio::net::TcpListener::bind(cfg.listen).await {
         Ok(l) => l,
         Err(e) => {
@@ -51,7 +60,14 @@ async fn run(cfg: Config) -> ExitCode {
         }
     };
     let addr = listener.local_addr().unwrap_or(cfg.listen);
-    startup_line(&format!("listening on {addr}"));
+    if local {
+        startup_line(&format!(
+            "listening on {addr}. In Spool, set the relay to ws://localhost:{}. Press Ctrl+C or close this window to stop it.",
+            addr.port()
+        ));
+    } else {
+        startup_line(&format!("listening on {addr}"));
+    }
 
     let (tx, rx) = tokio::sync::watch::channel(false);
     tokio::spawn(async move {
