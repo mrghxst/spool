@@ -156,6 +156,58 @@ All options are environment variables; see
 sudo docker compose pull && sudo docker compose up -d
 ```
 
+To update automatically, let a systemd timer check for new releases. The
+`latest` tag only moves when a version is released, so the relay doesn't
+pick up untested changes from `main` (that's the `edge` tag). This assumes
+the compose files are in `/opt/spool-relay`.
+
+`/usr/local/bin/spool-relay-update` (make it executable):
+
+```sh
+#!/bin/sh
+cd /opt/spool-relay || exit 1
+docker compose pull -q && docker compose up -d --remove-orphans && docker image prune -f >/dev/null
+```
+
+`/etc/systemd/system/spool-relay-update.service`:
+
+```ini
+[Unit]
+Description=Update spool-relay and Caddy images
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/spool-relay-update
+```
+
+`/etc/systemd/system/spool-relay-update.timer`:
+
+```ini
+[Unit]
+Description=Check for new spool-relay releases every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
+```
+
+Then `sudo systemctl daemon-reload && sudo systemctl enable --now
+spool-relay-update.timer`. Containers are only recreated when an image
+changed, which drops open downloads for a moment.
+
+::: warning Firewalls and Docker
+On Debian, restarting the stock `nftables` service runs `nft flush ruleset`,
+which also deletes Docker's rules and cuts the containers off from the
+internet. Keep your own rules in a separate table and load them with
+`nft -f`, without a flush.
+:::
+
 ## Build the image yourself
 
 ```sh
