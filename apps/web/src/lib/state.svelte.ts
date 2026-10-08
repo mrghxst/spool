@@ -398,6 +398,8 @@ class AppState {
       relay: this.settings.relay,
       target,
       cleanup: this.settings.cleanup,
+      // E2E tests shorten the stall timeout with ?stall=ms.
+      stallMs: E2E ? Number(params.get('stall')) || undefined : undefined,
     });
   }
 

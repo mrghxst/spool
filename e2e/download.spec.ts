@@ -76,3 +76,17 @@ test('1b. the Chromium folder writer (createWritable) produces the same files', 
   }
   expect(Object.keys(hashes).some((n) => n.endsWith('.crswap'))).toBe(false);
 });
+
+test('6. connections that go silent are replaced and the download finishes', async ({ page }) => {
+  // Every connection to this provider stops answering after 4 articles but
+  // stays open. The watchdog (1.5 s here, 45 s normally) must move the
+  // unanswered articles to fresh connections.
+  await open(page, '', '&stall=1500');
+  await addProvider(page, { port: PORTS.hangs, name: 'Flaky' });
+  const card = await download(page, 'clean');
+  await expect(card.getByText('Done. 2 files ready.')).toBeVisible();
+  const files = await saveFiles(page, 2);
+  for (const [name, hash] of expectedFiles('clean')) {
+    expect(files.get(name), name).toBe(hash);
+  }
+});

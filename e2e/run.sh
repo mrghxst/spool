@@ -27,7 +27,7 @@ trap cleanup EXIT
 rm -f "$W/mock/ready.json"
 target/release/mock-nntp "$W/mock.json" 2>"$W/mock.log" &
 pids+=($!)
-SPOOL_LISTEN=127.0.0.1:18080 SPOOL_ALLOW='*' SPOOL_PORTS=15631,15632,15633,15634,15635,15636 SPOOL_ALLOW_PRIVATE=1 \
+SPOOL_LISTEN=127.0.0.1:18080 SPOOL_ALLOW='*' SPOOL_PORTS=15631,15632,15633,15634,15635,15636,15637 SPOOL_ALLOW_PRIVATE=1 \
   target/release/spool-relay 2>"$W/relay.log" &
 pids+=($!)
 (cd apps/web && exec npx vite preview --outDir dist-e2e --host 127.0.0.1 --port 4173 --strictPort >"$ROOT/$W/preview.log" 2>&1) &

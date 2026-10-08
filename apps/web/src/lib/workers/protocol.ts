@@ -19,6 +19,8 @@ export type StartJob = {
   relay: string;
   target: Target;
   cleanup: boolean;
+  /** E2E only: a shorter stall timeout. */
+  stallMs?: number;
 };
 
 export type ToCoordinator =

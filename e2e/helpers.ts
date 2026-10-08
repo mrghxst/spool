@@ -7,7 +7,7 @@ import { expect, type Download, type Page } from '@playwright/test';
 export const WORK = join(dirname(fileURLToPath(import.meta.url)), '.work');
 export const RELAY = 'ws://127.0.0.1:18080';
 
-export const PORTS = { full: 15631, sparse: 15632, partialA: 15633, partialB: 15634 } as const;
+export const PORTS = { full: 15631, sparse: 15632, partialA: 15633, partialB: 15634, hangs: 15637 } as const;
 
 export type TestProvider = {
   port: number;

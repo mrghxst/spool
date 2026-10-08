@@ -93,6 +93,8 @@ config = {
         # a few are on neither (parts 4, 211 and 418).
         dict(provider("slow-primary", 15635, [{"every": 9, "offset": 4, "file_contains": "desktop"}]), delay_ms=90),
         dict(provider("slow-backup", 15636, [{"every": 23, "offset": 4, "file_contains": "desktop"}]), delay_ms=90),
+        # Every connection goes silent after 4 articles without closing.
+        dict(provider("hangs", 15637), hang_after=4),
     ],
 }
 json.dump(config, open(f"{W}/mock.json", "w"), indent=2)

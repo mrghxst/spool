@@ -46,6 +46,17 @@ const WINDOW = 16;
  * so a slow disk can't fill memory and the progress bar tracks what's saved.
  */
 const MAX_UNWRITTEN = 256 * 1024 * 1024;
+/**
+ * A connection with requests out and nothing back for this long is treated as
+ * dead: its articles go to other connections and a new one replaces it. A
+ * dropped route or a stuck server otherwise holds them forever, with the
+ * socket still open.
+ */
+const STALL_MS = 45_000;
+/** Connecting and logging in takes longer than this: give up and retry. */
+const CONNECT_MS = 30_000;
+/** After "too many connections", wait this long before trying one more. */
+const REGROW_MS = 60_000;
 const MAX_FAILURES = 3;
 const TEST_TIMEOUT_MS = 20000;
 
@@ -197,6 +208,10 @@ type ProvRt = {
   usable: boolean;
   error: string | null;
   target: number;
+  /** The configured connection count; target shrinks below it on "busy". */
+  max: number;
+  /** When the last "busy" reply came, for growing target back. */
+  lastBusy: number;
   open: number;
   authedOnce: boolean;
   failures: number;
@@ -214,6 +229,9 @@ type ConnRt = {
   closing: boolean;
   busy: boolean;
   inflight: Set<number>;
+  openedAt: number;
+  /** Last message from this connection (performance.now()). */
+  lastActivity: number;
 };
 
 type JobFile = {
@@ -278,6 +296,7 @@ class Job {
   ticker: ReturnType<typeof setInterval>;
   pumpTimer: ReturnType<typeof setTimeout> | null = null;
   finished = false;
+  stallMs: number;
 
   constructor(start: StartJob, nzb: NzbJson) {
     this.id = start.id;
@@ -296,6 +315,8 @@ class Job {
         usable: true,
         error: null,
         target: Math.max(1, Math.min(50, cfg.connections | 0)),
+        max: Math.max(1, Math.min(50, cfg.connections | 0)),
+        lastBusy: 0,
         open: 0,
         authedOnce: false,
         failures: 0,
@@ -351,7 +372,11 @@ class Job {
     for (const i of order) this.schedule(this.files[i]);
     const index = this.files.find((f) => f.kind === 'par2' && f.scheduled);
     this.par2Name = index?.name ?? null;
-    this.ticker = setInterval(() => this.report(), 250);
+    this.stallMs = start.stallMs ?? STALL_MS;
+    this.ticker = setInterval(() => {
+      this.watchdog();
+      this.report();
+    }, 250);
   }
 
   schedule(f: JobFile) {
@@ -496,7 +521,18 @@ class Job {
   openConn(p: ProvRt) {
     const id = nextConnId++;
     const net = netRound++ % nets.length;
-    const c: ConnRt = { id, prov: p, net, authed: false, closing: false, busy: false, inflight: new Set() };
+    const now = performance.now();
+    const c: ConnRt = {
+      id,
+      prov: p,
+      net,
+      authed: false,
+      closing: false,
+      busy: false,
+      inflight: new Set(),
+      openedAt: now,
+      lastActivity: now,
+    };
     this.conns.set(id, c);
     p.open++;
     toNet(net, {
@@ -542,6 +578,47 @@ class Job {
     if (c.closing) return;
     c.closing = true;
     toNet(c.net, { type: 'close', connId: c.id });
+  }
+
+  /**
+   * Gives up on a connection without waiting for it to close: a dead socket
+   * can take minutes to report it. Its articles are requeued now, and it no
+   * longer counts toward the provider's connections.
+   */
+  abandon(c: ConnRt) {
+    this.closeConn(c);
+    this.conns.delete(c.id);
+    c.prov.open = Math.max(0, c.prov.open - 1);
+    this.requeue(c);
+  }
+
+  /** Runs with every progress report (4 times a second). */
+  watchdog() {
+    if (!this.fetching || this.finished) return;
+    const now = performance.now();
+    let changed = false;
+    for (const c of [...this.conns.values()]) {
+      if (c.closing) continue;
+      const p = c.prov;
+      if (!c.authed && now - c.openedAt > CONNECT_MS) {
+        this.abandon(c);
+        p.failures++;
+        p.backoffUntil = Date.now() + Math.min(30000, 1000 * 2 ** p.failures);
+        changed = true;
+      } else if (c.authed && c.inflight.size > 0 && now - c.lastActivity > this.stallMs) {
+        this.abandon(c);
+        changed = true;
+      }
+    }
+    for (const p of this.provs) {
+      if (p.usable && p.target < p.max && Date.now() - p.lastBusy > REGROW_MS) {
+        p.target++;
+        p.busy = 0;
+        p.lastBusy = Date.now();
+        changed = true;
+      }
+    }
+    if (changed) this.pump();
   }
 
   /** Sends a segment to the next provider that hasn't tried it. */
@@ -596,6 +673,7 @@ class Job {
     const c = this.conns.get(m.connId);
     if (!c) return;
     const p = c.prov;
+    c.lastActivity = performance.now();
     switch (m.type) {
       case 'ready':
         break;
@@ -612,6 +690,7 @@ class Job {
       case 'busy':
         c.busy = true;
         p.busy++;
+        p.lastBusy = Date.now();
         p.target = Math.max(1, Math.min(p.target, p.open - 1));
         p.backoffUntil = Date.now() + Math.min(30000, 2000 * 2 ** Math.min(p.busy, 4));
         break;

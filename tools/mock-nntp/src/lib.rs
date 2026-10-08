@@ -212,6 +212,10 @@ pub struct ProviderConfig {
     /// Delay before each BODY reply, to slow downloads down (screenshots).
     #[serde(default)]
     pub delay_ms: u64,
+    /// After this many BODY replies on one connection, go silent: keep the
+    /// connection open but never answer again, like a dropped route.
+    #[serde(default)]
+    pub hang_after: Option<usize>,
 }
 
 /// Counters a test can inspect.
@@ -254,6 +258,7 @@ impl Provider {
         wr.flush().await?;
         let mut user_ok = false;
         let mut authed = false;
+        let mut bodies = 0usize;
         let mut line = String::new();
         loop {
             line.clear();
@@ -303,6 +308,12 @@ impl Provider {
                 }
                 "BODY" | "STAT" if !authed => b"480 authentication required\r\n".to_vec(),
                 "BODY" | "STAT" => {
+                    if self.config.hang_after.is_some_and(|n| bodies >= n) {
+                        // Swallow everything until the client gives up.
+                        while rd.read_line(&mut line).await? > 0 {}
+                        return Ok(());
+                    }
+                    bodies += 1;
                     if self.config.delay_ms > 0 {
                         wr.flush().await?;
                         tokio::time::sleep(std::time::Duration::from_millis(self.config.delay_ms))

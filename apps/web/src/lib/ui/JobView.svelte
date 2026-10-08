@@ -27,7 +27,8 @@
     }
   });
 
-  const eta = $derived(p && speed > 0 && p.total > p.received ? (p.total - p.received) / speed : NaN);
+  // Below 1 KB/s the estimate is meaningless (and can run to absurd numbers).
+  const eta = $derived(p && speed >= 1024 && p.total > p.received ? (p.total - p.received) / speed : NaN);
   const elapsed = $derived(job.finishedAt && job.startedAt ? (job.finishedAt - job.startedAt) / 1000 : NaN);
   const finished = $derived(Number.isFinite(elapsed));
 
@@ -118,7 +119,7 @@
       {:else}
         <div>
           <dt>Speed</dt>
-          <dd class="mono">{speed > 0 ? formatSpeed(speed) : '–'}</dd>
+          <dd class="mono">{speed >= 1024 ? formatSpeed(speed) : '–'}</dd>
         </div>
         <div>
           <dt>Time left</dt>
