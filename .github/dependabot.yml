@@ -14,6 +14,13 @@ updates:
     groups:
       npm:
         patterns: ['*']
+    ignore:
+      # svelte-check needs TypeScript 6; TypeScript 7 only works next to it with --tsgo.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # vitepress-plugin-mermaid supports mermaid 10 and 11 only.
+      - dependency-name: mermaid
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
